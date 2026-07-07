@@ -28,4 +28,7 @@ CHIP_CSRCS += am67_mpuinit.c
 CHIP_CSRCS += am67_pinmux.c
 CHIP_CSRCS += am67_serial.c
 CHIP_CSRCS += am67_timer.c
+ifeq ($(CONFIG_AM67_I2C),y)
+CHIP_CSRCS += am67_i2c.c
+endif
 CHIP_CSRCS += arm_mpu.c
