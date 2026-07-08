@@ -1049,6 +1049,9 @@ static int am67_i2c_isr_process(struct am67_i2c_priv_s *priv)
           priv->dcnt     = priv->msgv->length;
           priv->flags    = priv->msgv->flags;
 
+          /* CNT must be set before STT fires in sendstart */
+          am67_i2c_putreg(priv, AM67_I2C_CNT_OFFSET, priv->dcnt);
+
           if ((priv->flags & I2C_M_NOSTART) == 0)
             {
               am67_i2c_traceevent(priv, I2CEVENT_STARTRESTART, priv->msgc);
