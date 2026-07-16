@@ -331,3 +331,16 @@ void am67_i2c_pinmux_init(void)
 {
   am67_mcu_pinmux_config(g_am67_mcu_i2c_pinmux_conf);
 }
+
+/****************************************************************************
+ * Name: am67_epwm_pinmux_init
+ *
+ * Description:
+ *   Configure EPWM0 pin multiplexing
+ *
+ ****************************************************************************/
+
+void am67_epwm_pinmux_init(void)
+{
+  am67_pinmux_config(g_am67_epwm_pinmux_conf);
+}

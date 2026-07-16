@@ -36,6 +36,8 @@
 #include <nuttx/timers/pwm.h>
 
 #include "arm_internal.h"
+#include "am67_pinmux.h"
+#include "am67_pwm.h"
 #include "am67_pwm_hw.h"
 
 #ifdef CONFIG_AM67_EPWM0
@@ -77,34 +79,34 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: am67_pwm_getreg
+ * Name: am67_epwm_getreg
  *
  * Description:
  *   Get a 32-bit register value by offset
  *
  ****************************************************************************/
 
-static inline uint32_t am67_pwm_getreg(uint32_t base, uint32_t offset)
+static inline uint32_t am67_epwm_getreg(uint32_t base, uint32_t offset)
 {
   return getreg32(base + offset);
 }
 
 /****************************************************************************
- * Name: am67_pwm_putreg
+ * Name: am67_epwm_putreg
  *
  * Description:
  *  Put a 32-bit register value by offset
  *
  ****************************************************************************/
 
-static inline void am67_pwm_putreg(uint32_t base, uint32_t offset,
+static inline void am67_epwm_putreg(uint32_t base, uint32_t offset,
                                      uint32_t value)
 {
   putreg32(value, base + offset);
 }
 
 /****************************************************************************
- * Name: am67_pwm_enable_register_write
+ * Name: am67_epwm_enable_register_write
  *
  * Description:
  *   Unlock partition 1 of the MAIN_CTRL_MMR (kick lock) so that the EPWM
@@ -117,20 +119,20 @@ static inline void am67_pwm_putreg(uint32_t base, uint32_t offset,
  *
  ****************************************************************************/
 
-static int am67_pwm_enable_register_write(void)
+static int am67_epwm_enable_register_write(void)
 {
-  uint32_t regval = am67_pwm_getreg(AM67_MAIN_CTRL_MMR_BASE,
+  uint32_t regval = am67_epwm_getreg(AM67_MAIN_CTRL_MMR_BASE,
                                     AM67_CTRL_MMR_LOCK1_KICK0);
 
   if ((regval & AM67_CTRL_MMR_KICK0_UNLOCKED) == 0u)
     {
-      am67_pwm_putreg(AM67_MAIN_CTRL_MMR_BASE, AM67_CTRL_MMR_LOCK1_KICK0,
+      am67_epwm_putreg(AM67_MAIN_CTRL_MMR_BASE, AM67_CTRL_MMR_LOCK1_KICK0,
                       AM67_CTRL_MMR_KICK0_UNLOCK_KEY);
-      am67_pwm_putreg(AM67_MAIN_CTRL_MMR_BASE, AM67_CTRL_MMR_LOCK1_KICK1,
+      am67_epwm_putreg(AM67_MAIN_CTRL_MMR_BASE, AM67_CTRL_MMR_LOCK1_KICK1,
                       AM67_CTRL_MMR_KICK1_UNLOCK_KEY);
     }
 
-  regval = am67_pwm_getreg(AM67_MAIN_CTRL_MMR_BASE,
+  regval = am67_epwm_getreg(AM67_MAIN_CTRL_MMR_BASE,
                            AM67_CTRL_MMR_LOCK1_KICK0);
 
   if ((regval & AM67_CTRL_MMR_KICK0_UNLOCKED) == 0u)
@@ -143,30 +145,126 @@ static int am67_pwm_enable_register_write(void)
 }
 
 /****************************************************************************
- * Name: am67_pwm_enable_clock
+ * Name: am67_epwm_enable_clock
  *
  * Description:
  *   Enable the EPWM0 time-base clock in the EPWM_TB_CLKEN register.
  *   Read-modify-write to preserve the gates of the other EPWM instances
- *   (EPWM2 drives the board cooling fan).
+ *   (EPWM2 drives the board cooling fan).  The register is read back to
+ *   verify that the gate bit stuck.
+ *
+ * Returned Value:
+ *   Zero (OK) on success; -EIO if the clock gate did not enable.
  *
  ****************************************************************************/
 
-static void am67_pwm_enable_clock(void)
+static int am67_epwm_enable_clock(void)
 {
   /* Read register first to preserve already existing epwm configurations */
 
-  uint32_t regval = am67_pwm_getreg(AM67_MAIN_CTRL_MMR_BASE,
+  uint32_t regval = am67_epwm_getreg(AM67_MAIN_CTRL_MMR_BASE,
                                     AM67_CTRL_MMR_EPWM_TB_CLKEN);
 
   regval |= AM67_EPWM_TB_CLKEN_EPWM0_EN;
 
-  am67_pwm_putreg(AM67_MAIN_CTRL_MMR_BASE, AM67_CTRL_MMR_EPWM_TB_CLKEN,
+  am67_epwm_putreg(AM67_MAIN_CTRL_MMR_BASE, AM67_CTRL_MMR_EPWM_TB_CLKEN,
                   regval);
+
+  /* Re-read the register to check for possible errors during the write */
+
+  regval = am67_epwm_getreg(AM67_MAIN_CTRL_MMR_BASE,
+                           AM67_CTRL_MMR_EPWM_TB_CLKEN);
+
+  if ((regval & AM67_EPWM_TB_CLKEN_EPWM0_EN) == 0u)
+    {
+      pwmerr("ERROR: Could not enable EPWM0 clock: TB_CLKEN: 0x%08" PRIx32
+             "\n", regval);
+      return -EIO;
+    }
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: am67_epwm_check_pid
+ *
+ * Description:
+ *   Read the EPWM peripheral ID register and compare it against the
+ *   expected value.  Verifies that the module is powered and that the
+ *   base address is correct before any configuration is attempted.
+ *
+ * Returned Value:
+ *   Zero (OK) on success; -EIO if the PID does not match.
+ *
+ ****************************************************************************/
+
+static int am67_epwm_check_pid(void)
+{
+  uint32_t regval = am67_epwm_getreg(AM67_EPWM0_BASE,
+                                    AM67_EPWM_PID_OFFSET);
+
+  if (regval != AM67_EPWM_PID_EXPECTED)
+    {
+      pwmerr("ERROR: Unexpected EPWM PID: 0x%08" PRIx32
+             " (expected 0x%08" PRIx32 ")\n",
+             regval, (uint32_t)AM67_EPWM_PID_EXPECTED);
+      return -EIO;
+    }
+
+  return OK;
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: am67_epwm_init
+ *
+ * Description:
+ *   Bring up the EPWM0 module: unlock the CTRL_MMR partition, enable the
+ *   time-base clock, and verify the module is reachable by reading its
+ *   peripheral ID.  Must be called before any EPWM register access.
+ *
+ * Assumptions:
+ *   The EPWM0 device power domain must already be enabled via TISCI.
+ *   NuttX has no TISCI client yet, so for now Linux must grant it before
+ *   the R5F starts, e.g.:
+ *     echo on > /sys/devices/platform/bus@f0000/23000000.pwm/power/control
+ *   Otherwise the PID read bus-faults.  TODO: replace with a minimal
+ *   NuttX TISCI client so the R5F owns the PWM power (safety).
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value from the first failing
+ *   step otherwise.
+ *
+ ****************************************************************************/
+
+int am67_epwm_init(void)
+{
+  int ret;
+
+  ret = am67_epwm_enable_register_write();
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  ret = am67_epwm_enable_clock();
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  ret = am67_epwm_check_pid();
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  am67_epwm_pinmux_init();
+
+  return OK;
+}
 
 #endif /* CONFIG_AM67_EPWM0 */

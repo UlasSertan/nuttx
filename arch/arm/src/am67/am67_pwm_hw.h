@@ -29,60 +29,70 @@
 
 #include <nuttx/config.h>
 
+/* Base addresses */
+
+#define AM67_EPWM0_BASE                 0x23000000
+
+/* Expected values */
+
+#define AM67_EPWM_PID_EXPECTED          0x44d10903u
+
 /* Register offsets *********************************************************/
+
+#define AM67_EPWM_PID_OFFSET            0x05c
 
 /* TB module */
 
-#define AM67_PWM_EPWM_TBCTL       0x000
-#define AM67_PWM_EPWM_TBSTS       0x002
-#define AM67_PWM_EPWM_TBPHS       0x006
-#define AM67_PWM_EPWM_TBCNT       0x008
-#define AM67_PWM_EPWM_TBPRD       0x00a
+#define AM67_EPWM_TBCTL_OFFSET          0x000
+#define AM67_EPWM_TBSTS_OFFSET          0x002
+#define AM67_EPWM_TBPHS_OFFSET          0x006
+#define AM67_EPWM_TBCNT_OFFSET          0x008
+#define AM67_EPWM_TBPRD_OFFSET          0x00a
 
 /* CC module */
 
-#define AM67_PWM_EPWM_CMPCTL      0x00e
-#define AM67_PWM_EPWM_CMPA        0x012
-#define AM67_PWM_EPWM_CMPB        0x014
+#define AM67_EPWM_CMPCTL_OFFSET         0x00e
+#define AM67_EPWM_CMPA_OFFSET           0x012
+#define AM67_EPWM_CMPB_OFFSET           0x014
 
 /* AQ module */
 
-#define AM67_PWM_EPWM_AQCTLA      0x016
-#define AM67_PWM_EPWM_AQCTLB      0x018
-#define AM67_PWM_EPWM_AQSFRC      0x01a
-#define AM67_PWM_EPWM_AQCSFRC     0x01c
+#define AM67_EPWM_AQCTLA_OFFSET         0x016
+#define AM67_EPWM_AQCTLB_OFFSET         0x018
+#define AM67_EPWM_AQSFRC_OFFSET         0x01a
+#define AM67_EPWM_AQCSFRC_OFFSET        0x01c
 
 /* Register bit field definitions *******************************************/
 
 /* Time-Base Control Register (TBCTL) */
 
-#define AM67_PWM_EPWM_TBCTL_CTRMODE_SHIFT                   (0)
-#define AM67_PWM_EPWM_TBCTL_CTRMODE_MASK                    (3u << 0)
-#define AM67_PWM_EPWM_TBCTL_PHSEN_SHIFT                     (2)
-#define AM67_PWM_EPWM_TBCTL_PHSEN_MASK                      (1u << 2)
-#define AM67_PWM_EPWM_TBCTL_PRDLD_IMMEDIATE                 (1u << 3)
-#define AM67_PWM_EPWM_TBCTL_SYNCOSEL_SHIFT                  (4)
-#define AM67_PWM_EPWM_TBCTL_SYNCOSEL_MASK                   (3u << 4)
-#define AM67_PWM_EPWM_TBCTL_SWFSYNC_SHIFT                   (6)
-#define AM67_PWM_EPWM_TBCTL_SWFSYNC_MASK                    (1u << 6)
-#define AM67_PWM_EPWM_TBCTL_HSPCLKDIV_SHIFT                 (7)
-#define AM67_PWM_EPWM_TBCTL_HSPCLKDIV_MASK                  (7u << 7)
-#define AM67_PWM_EPWM_TBCTL_CLKDIV_SHIFT                    (10)
-#define AM67_PWM_EPWM_TBCTL_CLKDIV_MASK                     (7u << 10)
-#define AM67_PWM_EPWM_TBCTL_PHSDIR_SHIFT                    (13)
-#define AM67_PWM_EPWM_TBCTL_PHSDIR_MASK                     (1u << 13)
-#define AM67_PWM_EPWM_TBCTL_FREE_SOFT_SHIFT                 (14)
-#define AM67_PWM_EPWM_TBCTL_FREE_SOFT_MASK                  (3u << 14)
+#define AM67_EPWM_TBCTL_CTRMODE_SHIFT                   (0)
+#define AM67_EPWM_TBCTL_CTRMODE_MASK                    (3u << 0)
+#define AM67_EPWM_TBCTL_PHSEN_SHIFT                     (2)
+#define AM67_EPWM_TBCTL_PHSEN_MASK                      (1u << 2)
+#define AM67_EPWM_TBCTL_PRDLD_IMMEDIATE                 (1u << 3)
+#define AM67_EPWM_TBCTL_SYNCOSEL_SHIFT                  (4)
+#define AM67_EPWM_TBCTL_SYNCOSEL_MASK                   (3u << 4)
+#define AM67_EPWM_TBCTL_SWFSYNC_SHIFT                   (6)
+#define AM67_EPWM_TBCTL_SWFSYNC_MASK                    (1u << 6)
+#define AM67_EPWM_TBCTL_HSPCLKDIV_SHIFT                 (7)
+#define AM67_EPWM_TBCTL_HSPCLKDIV_MASK                  (7u << 7)
+#define AM67_EPWM_TBCTL_CLKDIV_SHIFT                    (10)
+#define AM67_EPWM_TBCTL_CLKDIV_MASK                     (7u << 10)
+#define AM67_EPWM_TBCTL_PHSDIR_SHIFT                    (13)
+#define AM67_EPWM_TBCTL_PHSDIR_MASK                     (1u << 13)
+#define AM67_EPWM_TBCTL_FREE_SOFT_SHIFT                 (14)
+#define AM67_EPWM_TBCTL_FREE_SOFT_MASK                  (3u << 14)
 
 /* Counter-Compare Control Register (CMPCTL) */
 
-#define AM67_PWM_EPWM_CMPCTL_LOADAMODE_SHIFT                (0)
-#define AM67_PWM_EPWM_CMPCTL_LOADBMODE_SHIFT                (2)
-#define AM67_PWM_EPWM_CMPCTL_LOADAMODE_MASK                 (3u << 0)
-#define AM67_PWM_EPWM_CMPCTL_LOADBMODE_MASK                 (3u << 2)
-#define AM67_PWM_EPWM_CMPCTL_SHDWAMODE_IMMEDIATE_SHIFT      (4)
-#define AM67_PWM_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE_SHIFT      (6)
-#define AM67_PWM_EPWM_CMPCTL_SHDWAMODE_IMMEDIATE            (1u << 4)
-#define AM67_PWM_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE            (1u << 6)
+#define AM67_EPWM_CMPCTL_LOADAMODE_SHIFT                (0)
+#define AM67_EPWM_CMPCTL_LOADBMODE_SHIFT                (2)
+#define AM67_EPWM_CMPCTL_LOADAMODE_MASK                 (3u << 0)
+#define AM67_EPWM_CMPCTL_LOADBMODE_MASK                 (3u << 2)
+#define AM67_EPWM_CMPCTL_SHDWAMODE_IMMEDIATE_SHIFT      (4)
+#define AM67_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE_SHIFT      (6)
+#define AM67_EPWM_CMPCTL_SHDWAMODE_IMMEDIATE            (1u << 4)
+#define AM67_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE            (1u << 6)
 
 #endif /* __ARCH_ARM_SRC_AM67_AM67_PWM_HW_H */
