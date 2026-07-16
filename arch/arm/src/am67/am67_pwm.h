@@ -48,12 +48,29 @@
  *   peripheral ID.  Must be called before any EPWM register access.
  *
  * Assumptions:
- *   The EPWM0 device power domain must already be enabled via TISCI.
- *   NuttX has no TISCI client yet, so for now Linux must grant it before
- *   the R5F starts, e.g.:
+ *   The EPWM0 power domain must be on (it is managed by the DMSC/TISCI
+ *   firmware, not by this driver).  On the current board it has been
+ *   observed to stay on without any intervention (mechanism unconfirmed;
+ *   possibly shared with the EPWM2 cooling fan or an unreaped boot
+ *   default) - do NOT rely on this.  The only explicit guarantee today
+ *   is forcing the device active from Linux before the R5F starts:
+ *
  *     echo on > /sys/devices/platform/bus@f0000/23000000.pwm/power/control
- *   Otherwise the PID read bus-faults.  TODO: replace with a minimal
- *   NuttX TISCI client so the R5F owns the PWM power (safety).
+ *
+ *   ("on" disables Linux runtime power management for that device, which
+ *   keeps the domain powered until reboot.)  If the domain is off, EPWM
+ *   registers read as zeros - no bus fault - so a PID mismatch of
+ *   0x00000000 means "not powered", not "wrong address".  Sub-word
+ *   (8-bit) accesses also read as zeros; use 16/32-bit accesses only.
+ *
+ * WARNING: This power domain is currently held up by an unidentified
+ *   party on the Linux side.  A Linux reboot or deliberate PM action
+ *   (pwmchip unexport, driver unbind, 'echo auto') WILL release it, and
+ *   if the holder is the EPWM2 fan's thermal policy, it could drop
+ *   spontaneously (e.g. fan off when cool) - unverified but not
+ *   excluded.  Either way the R5F gets no notification; outputs die
+ *   silently.  Do not drive safety-critical loads (motors, ESCs) until
+ *   a NuttX-side TISCI client owns this domain.
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value from the first failing
