@@ -37,6 +37,24 @@
 
 #define AM67_EPWM_PID_EXPECTED          0x44d10903u
 
+/* AQ Module Actions */
+#define AM67_EPWM_AQ_NOP             0
+#define AM67_EPWM_AQ_CLEAR           1
+#define AM67_EPWM_AQ_SET             2
+#define AM67_EPWM_AQ_TOGGLE          3
+
+/* CSFA Actions */
+#define AM67_EPWM_CSFA_DISABLE                0
+#define AM67_EPWM_CSFA_FORCE_LOW              1
+#define AM67_EPWM_CSFA_FORCE_HIGH             2
+#define AM67_EPWM_CSFA_FORCE_DISABLE          3
+
+/* CTR Modes */
+#define AM67_EPWM_TBCTL_CTRMODE_UP                 0
+#define AM67_EPWM_TBCTL_CTRMODE_DOWN               1
+#define AM67_EPWM_TBCTL_CTRMODE_UP_DOWN            2
+#define AM67_EPWM_TBCTL_CTRMODE_STOP_FREEZE        3
+
 /* Register offsets *********************************************************/
 
 #define AM67_EPWM_PID_OFFSET            0x05c
@@ -94,5 +112,17 @@
 #define AM67_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE_SHIFT      (6)
 #define AM67_EPWM_CMPCTL_SHDWAMODE_IMMEDIATE            (1u << 4)
 #define AM67_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE            (1u << 6)
+
+/* AQ Registers */
+
+#define AM67_EPWM_AQCTLA_ZRO_SHIFT                      (0)
+#define AM67_EPWM_AQCTLA_ZRO_MASK                       (3u << 0)
+#define AM67_EPWM_AQCTLA_CAU_SHIFT                      (4)
+#define AM67_EPWM_AQCTLA_CAU_MASK                       (3u << 4)
+#define AM67_EPWM_AQCSFRC_CSFA_SHIFT                    (0)
+#define AM67_EPWM_AQCSFRC_CSFA_MASK                     (3u << 0)
+#define AM67_EPWM_AQSFRC_RLDCSF_SHIFT                   (6)
+#define AM67_EPWM_AQSFRC_RLDCSF_MASK                    (3u << 6)
+#define AM67_EPWM_AQSFRC_RLDCSF_IMMEDIATE               (3)
 
 #endif /* __ARCH_ARM_SRC_AM67_AM67_PWM_HW_H */

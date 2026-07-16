@@ -106,6 +106,35 @@ static inline void am67_epwm_putreg(uint32_t base, uint32_t offset,
 }
 
 /****************************************************************************
+ * Name: am67_epwm_getreg16
+ *
+ * Description:
+ *   Get a 16-bit register value by offset.  All EPWM core registers
+ *   except PID are 16-bit; 32-bit access is unaligned for half of them
+ *   and clobbers the neighboring register for the rest.
+ *
+ ****************************************************************************/
+
+static inline uint16_t am67_epwm_getreg16(uint32_t base, uint32_t offset)
+{
+  return getreg16(base + offset);
+}
+
+/****************************************************************************
+ * Name: am67_epwm_putreg16
+ *
+ * Description:
+ *   Put a 16-bit register value by offset.
+ *
+ ****************************************************************************/
+
+static inline void am67_epwm_putreg16(uint32_t base, uint32_t offset,
+                                      uint16_t value)
+{
+  putreg16(value, base + offset);
+}
+
+/****************************************************************************
  * Name: am67_epwm_enable_register_write
  *
  * Description:
@@ -215,6 +244,81 @@ static int am67_epwm_check_pid(void)
 }
 
 /****************************************************************************
+ * Name: am67_epwm_config_aqctla
+ *
+ * Description:
+ *   Program the action qualifier for output A: SET at counter zero,
+ *   CLEAR at CMPA on the way up (up-count asymmetric recipe, duty is
+ *   proportional to CMPA).
+ *
+ ****************************************************************************/
+
+static void am67_epwm_config_aqctla(void)
+{
+  uint16_t regval = am67_epwm_getreg16(AM67_EPWM0_BASE,
+                                       AM67_EPWM_AQCTLA_OFFSET);
+
+  regval |= (AM67_EPWM_AQ_SET << AM67_EPWM_AQCTLA_ZRO_SHIFT);
+  regval |= (AM67_EPWM_AQ_CLEAR << AM67_EPWM_AQCTLA_CAU_SHIFT);
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_AQCTLA_OFFSET, regval);
+}
+
+/****************************************************************************
+ * Name: am67_epwm_config_csfrc
+ *
+ * Description:
+ *   Select immediate (non-shadowed) loading for AQCSFRC writes, then
+ *   force output A high via continuous software force.  RLDCSF must be
+ *   set first: with the counter frozen the AQCSFRC shadow would never
+ *   load, and the force would silently never take effect.
+ *
+ ****************************************************************************/
+
+static void am67_epwm_config_csfrc(void)
+{
+  uint16_t regval = am67_epwm_getreg16(AM67_EPWM0_BASE,
+                                       AM67_EPWM_AQSFRC_OFFSET);
+
+  regval |= (AM67_EPWM_AQSFRC_RLDCSF_IMMEDIATE <<
+             AM67_EPWM_AQSFRC_RLDCSF_SHIFT);
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_AQSFRC_OFFSET, regval);
+
+  regval = am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_AQCSFRC_OFFSET);
+
+  regval |= (AM67_EPWM_CSFA_FORCE_HIGH << AM67_EPWM_AQCSFRC_CSFA_SHIFT);
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_AQCSFRC_OFFSET, regval);
+}
+
+/****************************************************************************
+ * Name: am67_epwm_run_sfrc
+ *
+ * Description:
+ *   Rung-2 pin-path smoke test (temporary, delete after bring-up):
+ *   force EPWM0_A high via AQCSFRC and read back the AQ registers so the
+ *   result is visible on the console.  Register readback proves the
+ *   force latched; it cannot prove volts on the pad (that is rung 2b,
+ *   external measurement).
+ *
+ ****************************************************************************/
+
+static void am67_epwm_run_sfrc(void)
+{
+  uint16_t sfrc;
+  uint16_t csfrc;
+
+  am67_epwm_config_csfrc();
+
+  sfrc  = am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_AQSFRC_OFFSET);
+  csfrc = am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_AQCSFRC_OFFSET);
+
+  pwminfo("SFRC test: AQSFRC=0x%04x (expect 0x00c0)\n", sfrc);
+  pwminfo("SFRC test: AQCSFRC=0x%04x (expect 0x0002)\n", csfrc);
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -280,7 +384,7 @@ int am67_epwm_init(void)
     }
 
   am67_epwm_pinmux_init();
-
+  am67_epwm_run_sfrc();
   return OK;
 }
 
