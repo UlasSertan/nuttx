@@ -319,6 +319,111 @@ static void am67_epwm_run_sfrc(void)
 }
 
 /****************************************************************************
+ * Name: am67_epwm_set_tbctl
+ *
+ * Description:
+ *   Configure the time base with the counter frozen: ignition is a
+ *   separate final step so no half-configured state ever runs.  Full
+ *   compose (not RMW): we own every field, and HSPCLKDIV must go from
+ *   its reset value of div-by-2 to div-by-1, which OR alone cannot do.
+ *   PRDLD is deliberately immediate: a shadowed TBPRD would wait for a
+ *   zero event that a frozen counter never generates.  Runtime frequency
+ *   changes will want the shadow path back.
+ *
+ ****************************************************************************/
+
+static void am67_epwm_set_tbctl(void)
+{
+  uint16_t regval = (AM67_EPWM_TBCTL_CTRMODE_STOP_FREEZE <<
+                     AM67_EPWM_TBCTL_CTRMODE_SHIFT);
+
+  regval |= AM67_EPWM_TBCTL_PRDLD_IMMEDIATE;
+  regval |= (3u << AM67_EPWM_TBCTL_SYNCOSEL_SHIFT);  /* 3 = SYNCO off  */
+  regval |= (2u << AM67_EPWM_TBCTL_CLKDIV_SHIFT);    /* 2 = divide by 4 */
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_TBCTL_OFFSET, regval);
+}
+
+/****************************************************************************
+ * Name: am67_epwm_set_cmpctl
+ *
+ * Description:
+ *   Configure counter-compare: CMPA shadowed (SHDWAMODE=0), shadow
+ *   loaded into the active register on the PRD event (LOADAMODE=1) so a
+ *   duty update never races the SET action at counter zero.
+ *
+ ****************************************************************************/
+
+static void am67_epwm_set_cmpctl(void)
+{
+  uint16_t regval = 0u;
+
+  /* Load on TBCNT = TBPRD */
+
+  regval |= (1u << AM67_EPWM_CMPCTL_LOADAMODE_SHIFT);
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_CMPCTL_OFFSET, regval);
+}
+
+/****************************************************************************
+ * Name: am67_epwm_wave_init
+ *
+ * Description:
+ *   Bring up a fixed 50% duty waveform on EPWM0_A (temporary bring-up
+ *   sequence; the production driver computes period and duty from the
+ *   requested frequency instead).  Order: configure everything with the
+ *   counter frozen, write CTRMODE=up last.
+ *
+ * Input Parameters:
+ *   tb_period - TBPRD value; PWM frequency = TBCLK / (tb_period + 1)
+ *
+ ****************************************************************************/
+
+static void am67_epwm_wave_init(uint16_t tb_period)
+{
+  uint16_t regval;
+
+  am67_epwm_set_tbctl();
+  am67_epwm_set_cmpctl();
+
+  /* Set period register (PRDLD=immediate: takes effect now) */
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_TBPRD_OFFSET, tb_period);
+
+  /* Reset the counter (still frozen; clears any stale count) */
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_TBCNT_OFFSET, 0u);
+
+  /* 50% duty.  This write lands in the CMPA shadow register and only
+   * loads into the active register at the first PRD event, so the
+   * first period after ignition runs with active CMPA = 0 (reset):
+   * one period of 0% duty, pin low.  Accepted: silent and safe-low.
+   */
+
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_CMPA_OFFSET,
+                     (tb_period + 1u) / 2u);
+
+  /* Set AQ module registers */
+
+  am67_epwm_config_aqctla();
+
+  /* Start the wave: flip CTRMODE freeze -> up, everything configured */
+
+  regval = am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_TBCTL_OFFSET);
+  regval &= ~AM67_EPWM_TBCTL_CTRMODE_MASK;
+  regval |= (AM67_EPWM_TBCTL_CTRMODE_UP << AM67_EPWM_TBCTL_CTRMODE_SHIFT);
+  am67_epwm_putreg16(AM67_EPWM0_BASE, AM67_EPWM_TBCTL_OFFSET, regval);
+
+  /* end of wave_init, right after ignition: */
+  pwminfo("wave: TBCTL=0x%04x TBPRD=0x%04x\n",
+          am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_TBCTL_OFFSET),
+          am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_TBPRD_OFFSET));
+  pwminfo("wave: TBCNT=0x%04x then 0x%04x\n",
+          am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_TBCNT_OFFSET),
+          am67_epwm_getreg16(AM67_EPWM0_BASE, AM67_EPWM_TBCNT_OFFSET));
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -384,7 +489,7 @@ int am67_epwm_init(void)
     }
 
   am67_epwm_pinmux_init();
-  am67_epwm_run_sfrc();
+  am67_epwm_wave_init(62499);
   return OK;
 }
 
