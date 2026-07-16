@@ -68,6 +68,17 @@ static struct pinmux_conf_s g_am67_pinmux_conf[] =
   {PINMUX_END, PINMUX_END}
 };
 
+static struct pinmux_conf_s g_am67_epwm_pinmux_conf[] =
+{
+  /* EPWM0 A output pin */
+
+  {
+    PIN_SPI0_CS0,
+    (PIN_MODE(2) | PIN_PULL_DISABLE)
+  },
+  {PINMUX_END, PINMUX_END}
+};
+
 static struct pinmux_conf_s g_am67_mcu_spi_pinmux_conf[] =
 {
   /* MCU_SPI0_CLK */

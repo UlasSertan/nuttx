@@ -29,12 +29,7 @@
 
 #include <nuttx/config.h>
 
-
-
-
-
 /* Register offsets *********************************************************/
-
 
 /* TB module */
 
@@ -57,8 +52,9 @@
 #define AM67_PWM_EPWM_AQSFRC      0x01a
 #define AM67_PWM_EPWM_AQCSFRC     0x01c
 
-
 /* Register bit field definitions *******************************************/
+
+/* Time-Base Control Register (TBCTL) */
 
 #define AM67_PWM_EPWM_TBCTL_CTRMODE_SHIFT                   (0)
 #define AM67_PWM_EPWM_TBCTL_CTRMODE_MASK                    (3u << 0)
@@ -78,8 +74,7 @@
 #define AM67_PWM_EPWM_TBCTL_FREE_SOFT_SHIFT                 (14)
 #define AM67_PWM_EPWM_TBCTL_FREE_SOFT_MASK                  (3u << 14)
 
-
-
+/* Counter-Compare Control Register (CMPCTL) */
 
 #define AM67_PWM_EPWM_CMPCTL_LOADAMODE_SHIFT                (0)
 #define AM67_PWM_EPWM_CMPCTL_LOADBMODE_SHIFT                (2)
@@ -89,10 +84,5 @@
 #define AM67_PWM_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE_SHIFT      (6)
 #define AM67_PWM_EPWM_CMPCTL_SHDWAMODE_IMMEDIATE            (1u << 4)
 #define AM67_PWM_EPWM_CMPCTL_SHDWBMODE_IMMEDIATE            (1u << 6)
-
-
-
-
-
 
 #endif /* __ARCH_ARM_SRC_AM67_AM67_PWM_HW_H */
