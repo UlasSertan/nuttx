@@ -83,7 +83,27 @@ int am67_bringup(void)
     }
   else
     {
-      syslog(LOG_INFO, "EPWM0: init OK, PID verified\n");
+      struct pwm_lowerhalf_s *lower;
+
+      syslog(LOG_INFO, "EPWM0: CTRL_MMR unlocked\n");
+
+      lower = am67_epwminitialize(0);
+      if (lower == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to get EPWM0 lower half\n");
+        }
+      else
+        {
+          ret = pwm_register("/dev/pwm0", lower);
+          if (ret < 0)
+            {
+              syslog(LOG_ERR, "ERROR: pwm_register failed: %d\n", ret);
+            }
+          else
+            {
+              syslog(LOG_INFO, "EPWM0: registered /dev/pwm0\n");
+            }
+        }
     }
 #endif
 

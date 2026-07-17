@@ -28,6 +28,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/timers/pwm.h>
 
 #ifdef CONFIG_AM67_EPWM0
 
@@ -43,9 +44,11 @@
  * Name: am67_epwm_init
  *
  * Description:
- *   Bring up the EPWM0 module: unlock the CTRL_MMR partition, enable the
- *   time-base clock, and verify the module is reachable by reading its
- *   peripheral ID.  Must be called before any EPWM register access.
+ *   Boot-time EPWM preparation: unlock CTRL_MMR partition 1 (kick lock)
+ *   so that the clock-gate and pad writes issued later by the PWM
+ *   lower-half setup() can land.  Everything else (clock enable, PID
+ *   check, pinmux, waveform) is done by the lower-half ops, called by
+ *   the upper half on open/ioctl.  Must run before pwm_register().
  *
  * Assumptions:
  *   The EPWM0 power domain must be on (it is managed by the DMSC/TISCI
@@ -79,6 +82,26 @@
  ****************************************************************************/
 
 int am67_epwm_init(void);
+
+/****************************************************************************
+ * Name: am67_epwminitialize
+ *
+ * Description:
+ *   Return the EPWM lower-half instance for the given PWM number so the
+ *   board bringup can bind it to the upper half with pwm_register().
+ *   No hardware is touched here; the upper half drives the hardware
+ *   through the ops (setup on first open, start/stop via ioctl).
+ *
+ * Input Parameters:
+ *   pwm - PWM instance number; only 0 (EPWM0) exists today.
+ *
+ * Returned Value:
+ *   Pointer to the lower-half driver on success; NULL on an unsupported
+ *   instance number.
+ *
+ ****************************************************************************/
+
+struct pwm_lowerhalf_s *am67_epwminitialize(int pwm);
 
 #endif /* CONFIG_AM67_EPWM0 */
 #endif /* __ARCH_ARM_SRC_AM67_AM67_PWM_H */
