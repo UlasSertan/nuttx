@@ -43,6 +43,11 @@
 #include "am67_pwm.h"
 #endif
 
+#if defined(CONFIG_AM67_ECAP0) || defined(CONFIG_AM67_ECAP1) || \
+    defined(CONFIG_AM67_ECAP2)
+#include "am67_ecap.h"
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -128,6 +133,81 @@ int am67_bringup(void)
 #endif
     }
 #endif /* CONFIG_AM67_EPWM0 || CONFIG_AM67_EPWM1 */
+
+#if defined(CONFIG_AM67_ECAP0) || defined(CONFIG_AM67_ECAP1) || \
+    defined(CONFIG_AM67_ECAP2)
+  ret = am67_ecap_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to initialize eCAP: %d\n", ret);
+    }
+  else
+    {
+      struct pwm_lowerhalf_s *lower;
+
+      syslog(LOG_INFO, "eCAP: modules verified and pads muxed\n");
+
+#ifdef CONFIG_AM67_ECAP0
+      lower = am67_ecapinitialize(0);
+      if (lower == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to get eCAP0 lower half\n");
+        }
+      else
+        {
+          ret = pwm_register("/dev/ecap0", lower);
+          if (ret < 0)
+            {
+              syslog(LOG_ERR, "ERROR: pwm_register failed: %d\n", ret);
+            }
+          else
+            {
+              syslog(LOG_INFO, "eCAP0: registered /dev/ecap0\n");
+            }
+        }
+#endif
+
+#ifdef CONFIG_AM67_ECAP1
+      lower = am67_ecapinitialize(1);
+      if (lower == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to get eCAP1 lower half\n");
+        }
+      else
+        {
+          ret = pwm_register("/dev/ecap1", lower);
+          if (ret < 0)
+            {
+              syslog(LOG_ERR, "ERROR: pwm_register failed: %d\n", ret);
+            }
+          else
+            {
+              syslog(LOG_INFO, "eCAP1: registered /dev/ecap1\n");
+            }
+        }
+#endif
+
+#ifdef CONFIG_AM67_ECAP2
+      lower = am67_ecapinitialize(2);
+      if (lower == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to get eCAP2 lower half\n");
+        }
+      else
+        {
+          ret = pwm_register("/dev/ecap2", lower);
+          if (ret < 0)
+            {
+              syslog(LOG_ERR, "ERROR: pwm_register failed: %d\n", ret);
+            }
+          else
+            {
+              syslog(LOG_INFO, "eCAP2: registered /dev/ecap2\n");
+            }
+        }
+#endif
+    }
+#endif /* CONFIG_AM67_ECAP0 || CONFIG_AM67_ECAP1 || CONFIG_AM67_ECAP2 */
 
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */

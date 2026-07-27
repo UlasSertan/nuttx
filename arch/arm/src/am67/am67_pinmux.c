@@ -10,7 +10,7 @@
  * "License"); you may not use this file except in compliance with the
  * License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -39,18 +39,32 @@
 static struct pinmux_conf_s g_am67_pinmux_conf[] =
 {
   /* UART1_RXD -> MCASP0_AFSR (C27) */
-
   {
     PIN_MCASP0_AFSR,
     (PIN_MODE(2) | PIN_INPUT_ENABLE | PIN_PULL_DISABLE)
   },
 
   /* UART1_TXD -> MCASP0_ACLKR (F24) */
-
   {
     PIN_MCASP0_ACLKR,
     (PIN_MODE(2) | PIN_PULL_DISABLE)
   },
+
+#if 0  /* console bisect: MAIN6 UART pads disabled */
+  /* UART-MAIN6 RX */
+
+  {
+    PIN_GPMC0_WAIT1,
+    (PIN_MODE(3) | PIN_INPUT_ENABLE | PIN_PULL_DISABLE)
+  },
+
+  /* UART-MAIN6 TX */
+
+  {
+    PIN_MCASP0_AXR2,
+    (PIN_MODE(3) | PIN_PULL_DISABLE)
+  },
+#endif
 
   /* RED LED -> OLDI0_A0N (AF23) */
 
@@ -104,6 +118,35 @@ static struct pinmux_conf_s g_am67_epwm1_pinmux_conf[] =
   {PINMUX_END, PINMUX_END}
 };
 
+/* eCAP0 pad unassigned: C20 stays with EPWM0_B (keeps the console free). */
+
+static struct pinmux_conf_s g_am67_ecap0_pinmux_conf[] =
+{
+  {PINMUX_END, PINMUX_END}
+};
+
+static struct pinmux_conf_s g_am67_ecap1_pinmux_conf[] =
+{
+  /* eCAP1 APWM out: MCASP0_AXR3 mode 5 */
+
+  {
+    PIN_MCASP0_AXR3,
+    (PIN_MODE(5) | PIN_PULL_DISABLE)
+  },
+  {PINMUX_END, PINMUX_END}
+};
+
+static struct pinmux_conf_s g_am67_ecap2_pinmux_conf[] =
+{
+  /* eCAP2 APWM out: MCASP0_ACLKX mode 2 */
+
+  {
+    PIN_MCASP0_ACLKX,
+    (PIN_MODE(2) | PIN_PULL_DISABLE)
+  },
+  {PINMUX_END, PINMUX_END}
+};
+
 static struct pinmux_conf_s g_am67_mcu_spi_pinmux_conf[] =
 {
   /* MCU_SPI0_CLK */
@@ -141,13 +184,6 @@ static struct pinmux_conf_s g_am67_mcu_spi_pinmux_conf[] =
   {
     PIN_MCU_SPI0_CS1,
     (PIN_MODE(0) | PIN_PULL_DISABLE)
-  },
-
-  /* MCU_SPI0_CS2 (HAT spidev, channel 2) - WKUP_UART0_RXD pad, mode 2 */
-
-  {
-    PIN_WKUP_UART0_RXD,
-    (PIN_MODE(2) | PIN_PULL_DISABLE)
   },
 
   /* MCU_SPI0_CS3 (ICM20948, channel 3) - MCU_MCAN0_TX pad, mode 2 */
@@ -201,6 +237,30 @@ static struct pinmux_conf_s g_am67_mcu_i2c_pinmux_conf[] =
 #endif
   {PINMUX_END, PINMUX_END}
 };
+
+/* WKUP_UART0 is a WKUP-domain UART, so its pads go through the MCU pad
+ * controller (am67_mcu_pinmux_config), not the MAIN table.
+ */
+
+#if 0  /* console bisect: WKUP_UART0 early MCU-domain write disabled */
+static struct pinmux_conf_s g_am67_wkup_uart_pinmux_conf[] =
+{
+  /* WKUP_UART0 RX */
+
+  {
+    PIN_WKUP_UART0_RXD,
+    (PIN_MODE(0) | PIN_INPUT_ENABLE | PIN_PULL_DISABLE)
+  },
+
+  /* WKUP_UART0 TX */
+
+  {
+    PIN_WKUP_UART0_TXD,
+    (PIN_MODE(0) | PIN_PULL_DISABLE)
+  },
+  {PINMUX_END, PINMUX_END}
+};
+#endif
 
 /****************************************************************************
  * Private Functions
@@ -364,5 +424,36 @@ void am67_epwm_pinmux_init(int epwm)
   else
     {
       am67_pinmux_config(g_am67_epwm1_pinmux_conf);
+    }
+}
+
+/****************************************************************************
+ * Name: am67_ecap_pinmux_init
+ *
+ * Description:
+ *   Configure the APWM output pad for the given eCAP module.  eCAP0 uses
+ *   ball A23 (mode 8); eCAP1/eCAP2 pad tables are empty pending a board
+ *   decision (see the table definitions above).
+ *
+ ****************************************************************************/
+
+void am67_ecap_pinmux_init(int ecap)
+{
+  switch (ecap)
+    {
+      case 0:
+        am67_pinmux_config(g_am67_ecap0_pinmux_conf);
+        break;
+
+      case 1:
+        am67_pinmux_config(g_am67_ecap1_pinmux_conf);
+        break;
+
+      case 2:
+        am67_pinmux_config(g_am67_ecap2_pinmux_conf);
+        break;
+
+      default:
+        break;
     }
 }

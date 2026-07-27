@@ -176,6 +176,7 @@ struct am67_i2c_priv_s
   const struct am67_i2c_config_s *config;
 
   int refs;                    /* Reference count */
+  bool inited;                 /* HW brought up lazily on the first transfer */
   mutex_t lock;                /* Mutual exclusion mutex */
 #ifndef CONFIG_I2C_POLLED
   sem_t sem_isr;               /* Interrupt wait semaphore */
@@ -1245,6 +1246,17 @@ static int am67_i2c_transfer(struct i2c_master_s *dev,
       return ret;
     }
 
+  /* Bring the hardware up on first use.  The bus is registered early during
+   * board bring-up (before the console), but the I2C functional clock is only
+   * enabled by the DM afterwards, so the reset is deferred to here.
+   */
+
+  if (!priv->inited)
+    {
+      am67_i2c_init(priv);
+      priv->inited = true;
+    }
+
   /* Wait for any STOP in progress */
 
   ret = -EBUSY;
@@ -1408,16 +1420,14 @@ struct i2c_master_s *am67_i2cbus_initialize(int port)
       return NULL;
     }
 
-  /* Initialize private data for the first time, increment reference count,
-   * power-up hardware and configure GPIOs.
+  /* Reference count only.  The hardware is brought up lazily on the first
+   * transfer (see am67_i2c_transfer): bring-up registers the bus early, before
+   * the console, but the I2C functional clock is enabled by the DM later, so
+   * resetting the module here would spin on RST_DONE forever and hang boot.
    */
 
   nxmutex_lock(&priv->lock);
-  if (priv->refs++ == 0)
-    {
-      am67_i2c_init(priv);
-    }
-
+  priv->refs++;
   nxmutex_unlock(&priv->lock);
   return (struct i2c_master_s *)priv;
 }
@@ -1450,9 +1460,15 @@ int am67_i2cbus_uninitialize(struct i2c_master_s *dev)
       return OK;
     }
 
-  /* Disable power and other HW resource (GPIO's) */
+  /* Disable power and other HW resource (GPIO's), only if it was ever
+   * brought up (lazy init may never have run).
+   */
 
-  am67_i2c_deinit(priv);
+  if (priv->inited)
+    {
+      am67_i2c_deinit(priv);
+    }
+
   nxmutex_unlock(&priv->lock);
 
   return OK;
