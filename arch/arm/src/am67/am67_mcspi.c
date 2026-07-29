@@ -190,6 +190,11 @@ static void am67_mcspi_cs_force(FAR struct am67_mcspi_dev_s *priv,
 
   if (deassert)
     {
+      /* Wait for EOT so CS isn't dropped mid-word at high SCLK, which
+       * truncates writes (e.g. the ICM-20948 bank-switch).
+       */
+
+      am67_mcspi_waitstat(priv->base, priv->channel, AM67_MCSPI_CHSTAT_EOT);
       chconf &= ~AM67_MCSPI_CHCONF_FORCE;  /* FORCE=0: CS deasserted (high) */
     }
   else
@@ -201,7 +206,16 @@ static void am67_mcspi_cs_force(FAR struct am67_mcspi_dev_s *priv,
   am67_mcspi_putreg(priv->base,
                     AM67_MCSPI_CHCONF0 + AM67_MCSPI_CH_OFFSET(priv->channel),
                     chconf);
-  am67_mcspi_channel_enable(priv, !deassert);
+
+  /* Keep the channel enabled between transfers; toggling it re-inits the
+   * shift logic and can drop the next transfer's first word. CS is driven
+   * by FORCE above, so an idle enabled channel generates no clock.
+   */
+
+  if (!deassert)
+    {
+      am67_mcspi_channel_enable(priv, true);
+    }
 }
 
 static uint8_t am67_mcspi_calc_divisor(uint32_t speed_hz,
