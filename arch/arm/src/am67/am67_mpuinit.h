@@ -101,14 +101,24 @@
                                    MPU_RACR_AP_RWRW)
 
 /* DDR REGION
- *   Shareable
+ *   Non-shareable (see note)
  *   Cacheable
  *   Bufferable
  *   P:RW   U:RW
+ *
+ * NOTE: This region must NOT be marked Shareable. On the Cortex-R5, exclusive
+ * accesses (LDREX/STREX) to a Shareable Normal region are routed to an external
+ * global exclusive monitor on the interconnect. The K3 NoC path to DDR for this
+ * R5F does not implement one, so such accesses take a synchronous external data
+ * abort (DFSR encodes external abort). Single-core NuttX never issues LDREX on
+ * DDR, so this stayed latent; PX4's C++ std::atomic (and any ldrex-based lock)
+ * hits it immediately. Marking the region Non-shareable makes exclusives use
+ * the R5's always-present internal (local) monitor. This does not affect
+ * R5F<->A53 rpmsg coherency, which is handled by cache maintenance, not the S
+ * bit (the R5F is never hardware-coherent with the A53 regardless of S).
  */
 #define am67_ddr_region(base,size) \
   mpu_configure_region(base, size, MPU_RACR_TEX(1)  | \
-                                   MPU_RACR_S       | \
                                    MPU_RACR_C       | \
                                    MPU_RACR_B       | \
                                    MPU_RACR_AP_RWRW)
