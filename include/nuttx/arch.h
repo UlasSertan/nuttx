@@ -2573,6 +2573,15 @@ size_t up_check_tcbstack(FAR struct tcb_s *tcb, size_t check_size);
 #if defined(CONFIG_ARCH_INTERRUPTSTACK) && CONFIG_ARCH_INTERRUPTSTACK > 3
 size_t up_check_intstack(int cpu, size_t check_size);
 #endif
+
+/* PX4 compatibility wrappers (defined in arm_checkstack.c): return the number
+ * of *free* stack bytes. PX4's print_load.cpp calls these directly.
+ */
+
+size_t up_check_tcbstack_remain(FAR struct tcb_s *tcb);
+#if defined(CONFIG_ARCH_INTERRUPTSTACK) && CONFIG_ARCH_INTERRUPTSTACK > 3
+size_t up_check_intstack_remain(void);
+#endif
 #endif
 
 #if defined(CONFIG_ARCH_INTERRUPTSTACK) && CONFIG_ARCH_INTERRUPTSTACK > 3

@@ -22,6 +22,22 @@
 
 include armv7-r/Make.defs
 
+# When built under PX4, TOPDIR/Make.defs is PX4's own file, which (unlike a
+# stock NuttX board scripts/Make.defs) does not include Toolchain.defs, so
+# CELFFLAGS is left empty. crt0.c is compiled with $(CELFFLAGS) and is a
+# prerequisite of libarch.a even for CONFIG_BUILD_FLAT, so without the include
+# path it fails to find <nuttx/config.h>. Fall back to $(CFLAGS) here; in a
+# stock NuttX build Toolchain.defs has already set CELFFLAGS so this no-ops.
+CELFFLAGS ?= $(CFLAGS)
+
+# For the PX4 (archive-only) link, the vector-table object arm_vectortab.o -
+# which defines the ENTRY symbol _vector_start - must live inside libarch.a
+# rather than being a separately-linked HEAD object (PX4 links only the NuttX
+# archives, not HEAD_OBJ). Move it from HEAD_ASRC into the common sources so
+# EXTERN(_vector_start)/KEEP(*(.vectors)) in script.ld can pull and place it.
+HEAD_ASRC := $(filter-out arm_vectortab.S,$(HEAD_ASRC))
+CMN_ASRCS += arm_vectortab.S
+
 LDFLAGS += --entry=_vector_start
 
 CHIP_CSRCS += am67_boot.c

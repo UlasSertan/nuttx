@@ -262,4 +262,19 @@ size_t up_check_intstack(int cpu, size_t check_size)
 }
 #endif
 
+/* PX4 compatibility wrappers: return the number of *free* stack bytes. */
+
+size_t up_check_tcbstack_remain(struct tcb_s *tcb)
+{
+  return tcb->adj_stack_size - up_check_tcbstack(tcb, 0);
+}
+
+#if CONFIG_ARCH_INTERRUPTSTACK > 3
+size_t up_check_intstack_remain(void)
+{
+  return STACKFRAME_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK) -
+         up_check_intstack(0, 0);
+}
+#endif
+
 #endif /* CONFIG_STACK_COLORATION */
