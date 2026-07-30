@@ -1247,8 +1247,8 @@ static int am67_i2c_transfer(struct i2c_master_s *dev,
     }
 
   /* Bring the hardware up on first use.  The bus is registered early during
-   * board bring-up (before the console), but the I2C functional clock is only
-   * enabled by the DM afterwards, so the reset is deferred to here.
+   * board bring-up (before the console), but the I2C functional clock is
+   * only enabled by the DM afterwards, so the reset is deferred to here.
    */
 
   if (!priv->inited)
@@ -1421,9 +1421,10 @@ struct i2c_master_s *am67_i2cbus_initialize(int port)
     }
 
   /* Reference count only.  The hardware is brought up lazily on the first
-   * transfer (see am67_i2c_transfer): bring-up registers the bus early, before
-   * the console, but the I2C functional clock is enabled by the DM later, so
-   * resetting the module here would spin on RST_DONE forever and hang boot.
+   * transfer (see am67_i2c_transfer): bring-up registers the bus early,
+   * before the console, but the I2C functional clock is enabled by the DM
+   * later, so resetting the module here would spin on RST_DONE forever and
+   * hang boot.
    */
 
   nxmutex_lock(&priv->lock);
