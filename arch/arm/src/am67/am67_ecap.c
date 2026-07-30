@@ -473,8 +473,10 @@ static int am67_ecap_start(struct pwm_lowerhalf_s *dev,
   int8_t ch;
   int i;
 
-  am67_ecap_config_apwm(priv->base);
-  am67_ecap_reset_counter(priv->base);
+  /* config_apwm() clears TSCNTSTP (stops the counter) and reset_counter()
+   * zeroes it, so both run only on a frequency change below - a duty-only
+   * start() must not disturb the running counter.
+   */
 
   /* Validate the channel array (only channel 1 exists) and read its duty. */
 
@@ -545,6 +547,7 @@ static int am67_ecap_start(struct pwm_lowerhalf_s *dev,
 
   if (freq_changed)
     {
+      am67_ecap_config_apwm(priv->base);
       am67_ecap_counter_freeze(priv->base);
       am67_ecap_write_immediate(priv->base, period - 1u, compare);
       am67_ecap_reset_counter(priv->base);

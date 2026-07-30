@@ -1467,6 +1467,10 @@ int am67_i2cbus_uninitialize(struct i2c_master_s *dev)
   if (priv->inited)
     {
       am67_i2c_deinit(priv);
+
+      /* Re-arm lazy bring-up so the next transfer re-runs am67_i2c_init(). */
+
+      priv->inited = false;
     }
 
   nxmutex_unlock(&priv->lock);
