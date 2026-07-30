@@ -209,35 +209,6 @@ static int am67_ecap_enable_register_write(void)
 }
 
 /****************************************************************************
- * Name: am67_ecap_check_pid
- *
- * Description:
- *   Read the peripheral ID and reject a dead module: an unpowered domain
- *   reads all-zeros (no bus fault) and a bad base reads all-ones.  The
- *   expected value is not yet known, so log whatever is read.
- *
- * Returned Value:
- *   Zero (OK) if the module looks alive; -EIO otherwise.
- *
- ****************************************************************************/
-
-static int am67_ecap_check_pid(uint32_t base)
-{
-  uint32_t regval = am67_ecap_getreg(base, AM67_ECAP_PID_OFFSET);
-
-  pwminfo("eCAP PID: 0x%08" PRIx32 "\n", regval);
-
-  if (regval == 0u || regval == 0xffffffffu)
-    {
-      pwmerr("ERROR: eCAP module appears dead (PID 0x%08" PRIx32 ")\n",
-             regval);
-      return -EIO;
-    }
-
-  return OK;
-}
-
-/****************************************************************************
  * Name: am67_ecap_reset_counter
  *
  * Description:
@@ -413,15 +384,6 @@ static void am67_ecap_park(struct am67_ecap_s *priv)
 static int am67_ecap_setup(struct pwm_lowerhalf_s *dev)
 {
   struct am67_ecap_s *priv = (struct am67_ecap_s *)dev;
-  int ret;
-
-  /* Check the PID before any other register access */
-
-  // ret = am67_ecap_check_pid(priv->base);
-  // if (ret < 0)
-  //   {
-  //     return ret;
-  //   }
 
   am67_ecap_pinmux_init(priv->pinmux_id);
 
