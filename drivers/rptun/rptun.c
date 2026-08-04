@@ -830,7 +830,7 @@ static int rptun_do_start(FAR struct remoteproc *rproc)
         }
 
       ret = remoteproc_set_rsc_table(rproc, (struct resource_table *)rsc,
-                                     sizeof(struct rptun_rsc_s));
+                                     RPTUN_GET_RSC_SIZE(priv->dev));
       if (ret < 0)
         {
           rptunerr("remoteproc set rsc_table failed, ret=%d\n", ret);
