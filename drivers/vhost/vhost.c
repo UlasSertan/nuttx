@@ -31,6 +31,10 @@
 #include <nuttx/wqueue.h>
 #include <nuttx/vhost/vhost.h>
 
+#ifdef CONFIG_DRIVERS_VHOST_NET
+#  include "vhost-net.h"
+#endif
+
 #include "vhost-rng.h"
 #include "vhost-rpmsg.h"
 
@@ -497,6 +501,14 @@ void vhost_register_drivers(void)
     {
       vhosterr("metal_init failed, ret=%d\n", ret);
     }
+
+#ifdef CONFIG_DRIVERS_VHOST_NET
+  ret = vhost_register_net_driver();
+  if (ret < 0)
+    {
+      vhosterr("vhost_register_net_driver failed, ret=%d\n", ret);
+    }
+#endif
 
 #ifdef CONFIG_DRIVERS_VHOST_RNG
   ret = vhost_register_rng_driver();
