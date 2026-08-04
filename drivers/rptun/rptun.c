@@ -806,7 +806,7 @@ static int rptun_dev_start(FAR struct remoteproc *rproc)
         }
 
       ret = remoteproc_set_rsc_table(rproc, (struct resource_table *)rsc,
-                                     sizeof(struct rptun_rsc_s));
+                                     RPTUN_GET_RSC_SIZE(priv->dev));
       if (ret)
         {
           return ret;
