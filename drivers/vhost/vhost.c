@@ -211,6 +211,68 @@ int vhost_get_vq_buffers(FAR struct virtqueue *vq,
 }
 
 /****************************************************************************
+ * Name: vhost_get_vq_buffers_pa
+ *
+ * Description:
+ *   Like vhost_get_vq_buffers(), but returns the untranslated 64-bit
+ *   descriptor addresses instead of CPU pointers.  Needed when the peer
+ *   driver posts buffers beyond the CPU's directly addressable range
+ *   (the pointer-based API would silently truncate the address).
+ *
+ *   The caller completes the chain with virtqueue_add_consumed_buffer()
+ *   using the returned head index, exactly as with the pointer API.
+ *
+ ****************************************************************************/
+
+int vhost_get_vq_buffers_pa(FAR struct virtqueue *vq,
+                            FAR struct vhost_buf_s *vb, size_t vbsize,
+                            FAR size_t *vbcnt)
+{
+  uint16_t head;
+  uint16_t idx;
+  size_t i = 0;
+
+  DEBUGASSERT(vb != NULL && vbsize >= 1 && vbcnt != NULL);
+
+  atomic_thread_fence(memory_order_seq_cst);
+
+  /* Avail is written by the peer driver; on this platform the vrings live
+   * in non-cacheable memory so plain reads observe the peer's updates.
+   */
+
+  if (vq->vq_available_idx == vq->vq_ring.avail->idx)
+    {
+      return -ENOMEM;
+    }
+
+  head = vq->vq_ring.avail->ring[vq->vq_available_idx++ &
+                                 (vq->vq_nentries - 1)];
+
+  for (idx = head; ; )
+    {
+      if (i >= vbsize)
+        {
+          vhosterr("vbsize %zu is not enough\n", vbsize);
+          return -EINVAL;
+        }
+
+      vb[i].addr = vq->vq_ring.desc[idx].addr;
+      vb[i].len  = vq->vq_ring.desc[idx].len;
+      i++;
+
+      if (!(vq->vq_ring.desc[idx].flags & VRING_DESC_F_NEXT))
+        {
+          break;
+        }
+
+      idx = vq->vq_ring.desc[idx].next;
+    }
+
+  *vbcnt = i;
+  return head;
+}
+
+/****************************************************************************
  * Name: vhost_register_driver
  ****************************************************************************/
 
