@@ -2406,6 +2406,12 @@ config ARCH_BOARD_NANOPI_M4
 		This options selects support for NuttX on FriendlyElec NanoPi M4
 		based on Rockchip RK3399 SoC with ARM Cortex-A53
 
+config ARCH_BOARD_T3_GEM_O1
+	bool "T3 Gemstone O1"
+	depends on ARCH_CHIP_AM67
+	---help---
+		This is the port of NuttX to the T3 Gemstone O1 board.
+
 config ARCH_BOARD_FVP_ARMV8R
 	bool "FVP ARM-v8r CPUs board"
 	depends on ARCH_CHIP_FVP_ARMV8R
@@ -3748,6 +3754,7 @@ config ARCH_BOARD
 	default "pinephone"                    if ARCH_BOARD_PINEPHONE
 	default "pinephonepro"                 if ARCH_BOARD_PINEPHONE_PRO
 	default "nanopi_m4"                    if ARCH_BOARD_NANOPI_M4
+	default "t3-gem-o1"                    if ARCH_BOARD_T3_GEM_O1
 	default "fvp-armv8r"                   if ARCH_BOARD_FVP_ARMV8R
 	default "fvp-armv8r-aarch32"           if ARCH_BOARD_FVP_ARMV8R_AARCH32
 	default "imx8qm-mek"                   if ARCH_BOARD_IMX8QM_MEK
@@ -3981,6 +3988,7 @@ if ARCH_BOARD_PINEPHONE_PRO
 source "boards/arm64/rk3399/pinephonepro/Kconfig"
 endif
 if ARCH_BOARD_FVP_ARMV8R
+source "boards/arm/am67/t3-gem-o1/Kconfig"
 source "boards/arm64/fvp-v8r/fvp-armv8r/Kconfig"
 endif
 if ARCH_BOARD_FVP_ARMV8R_AARCH32
