@@ -141,7 +141,7 @@ static const char *am67_rptun_get_cpuname(struct rptun_dev_s *dev);
 static const char *am67_rptun_get_firmware(struct rptun_dev_s *dev);
 static const struct rptun_addrenv_s *
 am67_rptun_get_addrenv(struct rptun_dev_s *dev);
-static struct resource_table *
+static struct rptun_rsc_s *
 am67_rptun_get_resource(struct rptun_dev_s *dev);
 static size_t am67_rptun_get_rsc_size(struct rptun_dev_s *dev);
 static bool am67_rptun_is_autostart(struct rptun_dev_s *dev);
@@ -194,7 +194,7 @@ am67_rptun_get_addrenv(struct rptun_dev_s *dev)
   return NULL; /* physical == virtual (no MMU on R5F) */
 }
 
-static struct resource_table *
+static struct rptun_rsc_s *
 am67_rptun_get_resource(struct rptun_dev_s *dev)
 {
   /* The resource table is placed at a fixed address (0xA2100000) by the
@@ -203,7 +203,7 @@ am67_rptun_get_resource(struct rptun_dev_s *dev)
    * before kicking the R5F, so we return a non-const pointer.
    */
 
-  return (struct resource_table *)&g_am67_rsc_table;
+  return (struct rptun_rsc_s *)&g_am67_rsc_table;
 }
 
 static size_t am67_rptun_get_rsc_size(struct rptun_dev_s *dev)
