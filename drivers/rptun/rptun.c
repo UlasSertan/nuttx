@@ -46,6 +46,10 @@
 #include <openamp/remoteproc_virtio.h>
 #include <rpmsg/rpmsg_internal.h>
 
+#ifdef CONFIG_DRIVERS_VHOST
+#include <nuttx/vhost/vhost.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -63,6 +67,13 @@ struct rptun_priv_s
   FAR struct rptun_dev_s       *dev;
   struct remoteproc            rproc;
   struct rpmsg_virtio_shm_pool pool[2];
+#ifdef CONFIG_DRIVERS_VHOST
+  /* Optional second vdev from the resource table (e.g. virtio-net towards
+   * a driver-role peer), registered with the vhost bus.
+   */
+
+  FAR struct virtio_device     *vhost_vdev;
+#endif
   sem_t                        semtx;
   sem_t                        semrx;
   pid_t                        tid;
@@ -400,6 +411,24 @@ static int rptun_callback(FAR void *arg, uint32_t vqid)
   FAR struct virtqueue *rvq = rvdev->rvq;
 
   rptun_command(priv);
+
+#ifdef CONFIG_DRIVERS_VHOST
+  /* Route kicks addressed to the vhost vdev's vrings to their virtqueues */
+
+  if (priv->vhost_vdev)
+    {
+      unsigned int i;
+
+      for (i = 0; i < priv->vhost_vdev->vrings_num; i++)
+        {
+          if (vqid == RPTUN_NOTIFY_ALL ||
+              vqid == priv->vhost_vdev->vrings_info[i].notifyid)
+            {
+              virtqueue_notification(priv->vhost_vdev->vrings_info[i].vq);
+            }
+        }
+    }
+#endif
 
   if (vqid == RPTUN_NOTIFY_ALL ||
       vqid == vdev->vrings_info[rvq->vq_queue_index].notifyid)
@@ -921,6 +950,27 @@ static int rptun_dev_start(FAR struct remoteproc *rproc)
   priv->rvdev.rdev.ns_unbind_cb = rpmsg_ns_unbind;
   priv->rvdev.notify_wait_cb = rptun_notify_wait;
 
+#ifdef CONFIG_DRIVERS_VHOST
+  /* If the resource table publishes a second vdev, hand it to the vhost
+   * (device-role virtio) bus so class drivers such as vhost-net can bind.
+   * Absence of a second entry is not an error.
+   */
+
+  priv->vhost_vdev = remoteproc_create_virtio(rproc, 1,
+                                              VIRTIO_DEV_DEVICE, NULL);
+  if (priv->vhost_vdev)
+    {
+      ret = vhost_register_device(priv->vhost_vdev);
+      if (ret < 0)
+        {
+          metal_log(METAL_LOG_ERROR,
+                    "vhost_register_device failed: %d\n", ret);
+          remoteproc_remove_virtio(rproc, priv->vhost_vdev);
+          priv->vhost_vdev = NULL;
+        }
+    }
+#endif
+
   /* Remote proc start */
 
   ret = remoteproc_start(rproc);
@@ -974,6 +1024,15 @@ static int rptun_dev_stop(FAR struct remoteproc *rproc, bool stop_ns)
   rpmsg_device_destory(&priv->rpmsg);
 
   /* Remote proc remove */
+
+#ifdef CONFIG_DRIVERS_VHOST
+  if (priv->vhost_vdev)
+    {
+      vhost_unregister_device(priv->vhost_vdev);
+      remoteproc_remove_virtio(rproc, priv->vhost_vdev);
+      priv->vhost_vdev = NULL;
+    }
+#endif
 
   rpmsg_deinit_vdev(&priv->rvdev);
   remoteproc_remove_virtio(rproc, priv->rvdev.vdev);
