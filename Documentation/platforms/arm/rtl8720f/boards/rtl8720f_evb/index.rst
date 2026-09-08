@@ -31,6 +31,24 @@ Supported in this NuttX port:
   partition), backing the Wi-Fi key-value store
 * Wi-Fi station and SoftAP through the ``wapi`` tool
 * DHCP client (STA) and DHCP server (SoftAP)
+* GPIO pins exposed as ``/dev/gpioN`` character devices (input, output and
+  interrupt), driven directly on the SDK fwlib register layer
+* General-purpose UARTs exposed as ``/dev/ttySN`` serial devices, driven
+  directly on the SDK fwlib register layer
+* I2C master buses exposed as ``/dev/i2cN`` character devices, driven directly
+  on the SDK fwlib register layer
+* SPI master buses exposed as ``/dev/spiN`` character devices, driven directly
+  on the SDK fwlib register layer
+* PWM output exposed as a ``/dev/pwm0`` character device, driven directly on
+  the SDK fwlib timer register layer
+* ADC channels exposed as an ``/dev/adc0`` character device, driven directly
+  on the SDK fwlib register layer
+* On-chip RTC exposed as a ``/dev/rtc0`` date/time character device with
+  alarm support, driven directly on the SDK fwlib register layer
+* On-chip watchdog exposed as a ``/dev/watchdog0`` character device, driven
+  directly on the SDK fwlib register layer
+* General-purpose timers exposed as ``/dev/timer0`` and ``/dev/timer1``
+  character devices, driven directly on the SDK fwlib register layer
 
 Buttons and LEDs
 ================
@@ -47,6 +65,146 @@ rtl8720f_evb`` first (the make build needs no sourcing).
 .. code:: console
 
    $ ./tools/configure.sh rtl8720f_evb:<config-name>
+
+gpio
+----
+
+Minimal NSH with the GPIO driver and the ``gpio`` example enabled (no Wi-Fi).
+The board registers three pins from its pin table (see
+``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_gpio.c``): an output at
+``/dev/gpio0``, an input at ``/dev/gpio1`` and an interrupt pin at
+``/dev/gpio2``. Edit that table to match a board's wiring. Exercise them with
+the example::
+
+    nsh> gpio -o 1 /dev/gpio0     # drive the output high
+    nsh> gpio /dev/gpio1          # read the input
+    nsh> gpio -w 1 /dev/gpio2     # wait for a falling-edge interrupt
+
+RTL8720F drives all GPIO through a single port A controller, so pins are
+encoded with the ``AMEBA_PA()`` helper from
+``arch/arm/src/common/ameba/ameba_gpio.h`` (pin 0-31), matching the Ameba SDK
+``PinName`` layout.
+
+uart
+----
+
+Minimal NSH with the general-purpose UART driver and the ``serialrx`` /
+``serialblaster`` examples enabled (no Wi-Fi). The LOG-UART owns the console
+and ``/dev/ttyS0``, so the board registers UART0 from its table (see
+``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_uart.c``) as ``/dev/ttyS1`` at
+115200 8N1. Edit that table -- controller, TX/RX pads and baud -- to match a
+board's wiring. The TX/RX pads use the same ``AMEBA_PA()`` encoding as the
+GPIO table; the driver muxes them to the UART function and pulls RX high
+through the SDK ROM. Exercise the port with the examples (loop TX back to RX,
+or wire it to a host serial adapter)::
+
+    nsh> serialrx /dev/ttyS1 2600 &     # start the receiver first
+    nsh> serialblaster /dev/ttyS1 2600  # then loop TX back to RX
+
+The line format can be changed at runtime through ``tcsetattr()`` (the config
+enables ``CONFIG_SERIAL_TERMIOS``). UART2 is not exposed by the driver.
+
+i2c
+---
+
+Minimal NSH with the I2C master driver and the ``i2ctool`` (``system/i2c``)
+enabled (no Wi-Fi). The board registers its I2C controllers from a table (see
+``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_i2c.c``): I2C0 at ``/dev/i2c0``
+on PA22/PA23 and I2C1 at ``/dev/i2c1`` on PA24/PA25. Edit that table --
+controller and SCL/SDA pads -- to match a board's wiring; the pads use the
+same ``AMEBA_PA()`` encoding as the GPIO table and are muxed to the I2C
+function through the SDK ROM. The I2C bus is open-drain, so fit external
+pull-ups on SCL/SDA. Probe a bus with the tool::
+
+    nsh> i2c dev -b 0 0x03 0x77     # scan /dev/i2c0 for devices
+
+spi
+---
+
+Minimal NSH with the SPI master driver and the ``spi`` tool
+(``system/spi``) enabled (no Wi-Fi). The board registers SPI0 at
+``/dev/spi0`` from its table (see
+``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_spi.c``) with CLK/MOSI/MISO on
+PA14/PA15/PA16 and a software chip-select on PA17. Edit that table --
+controller, CLK/MOSI/MISO pads and CS pad -- to match a board's wiring; the
+pads use the same ``AMEBA_PA()`` encoding as the GPIO table (RTL8720F drives
+all GPIO through a single port A controller) and are muxed to the SPI function
+through the SDK ROM, while the chip-select is driven as a plain GPIO. Note
+that not every pad can carry every SPI signal -- pick pads the SDK pin mux
+actually routes to the controller. Exercise a bus with the tool::
+
+    nsh> spi exch -b 0 -x 4 deadbeef     # full-duplex transfer on /dev/spi0
+
+pwm
+---
+
+Minimal NSH with the PWM driver and the ``pwm`` example
+(``examples/pwm``) enabled (no Wi-Fi). The board registers one timer at
+``/dev/pwm0`` (see ``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_pwm.c``):
+TIM4 drives up to four compare channels off one shared time base, so every
+channel shares one frequency and each carries its own duty cycle. The example
+table routes channel 1 to PA23 and channel 2 to PA24; edit it -- one pad per
+channel, ``AMEBA_PWM_PIN_NC`` for the unused ones -- to match a board's
+wiring. The pads use the same ``AMEBA_PA()`` / ``AMEBA_PB()`` encoding as the
+GPIO table and are muxed to the PWM function through the crossbar. Set
+``CONFIG_PWM_NCHANNELS`` to the number of channels used. Exercise it with the
+example::
+
+    nsh> pwm -d 25 -f 1000     # 1 kHz, 25% duty on /dev/pwm0
+
+adc
+---
+
+Minimal NSH with the ADC driver and the ``adc`` example enabled (no Wi-Fi).
+The board registers its channels from a table (see
+``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_adc.c``): ``/dev/adc0`` samples
+CH0 on PA13 and CH1 on PA14. Edit that table -- channel numbers and the analog
+pad each is wired to -- to match a board's wiring; the external channels
+CH0..CH5 map to pads PA13..PA18 and are muxed to the ADC function through the
+SDK ROM, while internal channels carry ``AMEBA_ADC_PIN_NC``. Every listed
+channel is sampled, in order, on each trigger. Read the channels with the
+example::
+
+    nsh> adc -n 1                        # one sweep of /dev/adc0
+
+rtc
+---
+
+Minimal NSH with the on-chip RTC driver and the ``alarm`` example enabled
+(no Wi-Fi). The RTC is registered at ``/dev/rtc0`` from the board bring-up
+(``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_rtc.c``); it has no board
+wiring (it is an internal clock). The hardware stores year + day-of-year, so
+the shared driver bridges to a full calendar. Read and set the clock with the
+NSH ``date`` command, and arm a one-shot wakeup with the example::
+
+    nsh> date                            # read /dev/rtc0
+    nsh> date -s "Jun 16 12:00:00 2026"  # set the RTC
+    nsh> alarm 10                        # fire an alarm in 10 seconds
+
+wdg
+---
+
+Minimal NSH with the on-chip watchdog driver and the ``wdog`` example
+enabled (no Wi-Fi). The watchdog is registered at ``/dev/watchdog0`` from the
+board bring-up (``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_wdg.c``); it
+has no board wiring (it is an internal timer). Exercise it with the example,
+which opens the device, sets a timeout, and pings it::
+
+    nsh> wdog                            # run the watchdog example
+
+timer
+-----
+
+Minimal NSH with the on-chip general-purpose timer driver and the ``timer``
+example enabled (no Wi-Fi). Two 32-bit basic timers clocked at 32.768 kHz are
+registered from the board bring-up
+(``boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_timer.c``) as ``/dev/timer0``
+(TIM1) and ``/dev/timer1`` (TIM2); they have no board wiring (they are
+internal). TIM0 is reserved by the boot ROM as the system timer and is not
+exposed. Exercise a device with the example, which sets an interval and counts
+the update interrupts::
+
+    nsh> timer -d /dev/timer0            # run the timer example on TIM1
 
 nsh
 ---

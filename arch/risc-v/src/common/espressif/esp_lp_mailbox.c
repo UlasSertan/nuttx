@@ -24,12 +24,16 @@
 
 #include <nuttx/config.h>
 
+#include <errno.h>
+#include <fcntl.h>
+
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 
 #include <nuttx/debug.h>
 
 #include "lp_core_mailbox.h"
+#include "soc/soc_caps.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -52,6 +56,7 @@ struct esp_lp_mailbox_priv_s
  * Private Function Prototypes
  ****************************************************************************/
 
+static int esp_lp_mailbox_open(struct file *filep);
 static int esp_lp_mailbox_read(struct file *filep,
                                char *buffer,
                                size_t buflen);
@@ -68,7 +73,7 @@ static int esp_lp_mailbox_ioctl(struct file *filep,
 
 static const struct file_operations g_esp_lp_mailbox_fops =
 {
-  .open = NULL,                       /* open */
+  .open = esp_lp_mailbox_open,        /* open */
   .close = NULL,                      /* close */
   .read = esp_lp_mailbox_read,        /* read */
   .write = esp_lp_mailbox_write,      /* write */
@@ -90,6 +95,31 @@ struct esp_lp_mailbox_priv_s esp_lp_mailbox_priv =
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: esp_lp_mailbox_open
+ *
+ * Description:
+ *   Handler for the LP Mailbox initializer.
+ *
+ * Input Parameters:
+ *   filep - Pointer to the file structure.
+ *
+ * Returned Value:
+ *   None.
+ *
+ ****************************************************************************/
+
+static int esp_lp_mailbox_open(struct file *filep)
+{
+  int ret = OK;
+#ifndef SOC_LP_MAILBOX_SUPPORTED
+  ret = lp_core_mailbox_init(&esp_lp_mailbox_priv.mailbox,
+                             &esp_lp_mailbox_priv.config);
+#endif
+
+  return ret;
+}
 
 /****************************************************************************
  * Name: esp_lp_mailbox_rcv_callback
@@ -135,7 +165,7 @@ static int esp_lp_mailbox_read(struct file *filep,
 {
   struct inode *inode = filep->f_inode;
   struct esp_lp_mailbox_priv_s *priv = inode->i_private;
-  lp_message_t msg;
+  uint32_t timeout =  (filep->f_oflags & O_NONBLOCK) ? 0 : UINT32_MAX;
   int i = 0;
   int ret = OK;
   lp_message_t recv;
@@ -144,10 +174,19 @@ static int esp_lp_mailbox_read(struct file *filep,
 
   while (i < buflen)
     {
-      ret = lp_core_mailbox_receive(priv->mailbox, &recv, UINT32_MAX);
+      ret = lp_core_mailbox_receive(priv->mailbox, &recv, timeout);
       if (ret != OK)
         {
-          ferr("Failed to receive %dth byte\n", i + 1);
+          if (i == 0 && (filep->f_oflags & O_NONBLOCK) != 0)
+            {
+              return -EAGAIN;
+            }
+
+          if ((filep->f_oflags & O_NONBLOCK) == 0)
+            {
+              ferr("Failed to receive %dth byte\n", i + 1);
+            }
+
           return i;
         }
 
@@ -269,15 +308,15 @@ static int esp_lp_mailbox_ioctl(struct file *filep,
               priv->async_op = true;
             }
 
-            if (ret != OK)
-              {
-                priv->async_op = false;
-                ferr("Could not register callback-%lx to lp-mailbox!\n",
-                      (uint32_t)handler);
-                return ERROR;
-              }
+          if (ret != OK)
+            {
+              priv->async_op = false;
+              ferr("Could not register callback-%lx to lp-mailbox!\n",
+                    (uint32_t)handler);
+              return ERROR;
+            }
 
-            priv->handler = handler;
+          priv->handler = handler;
           break;
         }
 
@@ -312,6 +351,7 @@ static int esp_lp_mailbox_ioctl(struct file *filep,
 
 int esp_lp_mailbox_init(void)
 {
+#ifdef SOC_LP_MAILBOX_SUPPORTED
   int ret = lp_core_mailbox_init(&esp_lp_mailbox_priv.mailbox,
                                  &esp_lp_mailbox_priv.config);
 
@@ -320,6 +360,7 @@ int esp_lp_mailbox_init(void)
       ferr("Failed to initialize LP Mailbox driver: %d\n", ret);
       return ret;
     }
+#endif
 
   register_driver("/dev/lp_mailbox", esp_lp_mailbox_priv.ops,
                   0600, (void *)&esp_lp_mailbox_priv);

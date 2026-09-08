@@ -41,7 +41,8 @@ list(
   stm32_pwr.c
   stm32_timerisr.c
   stm32_lse.c
-  stm32_lsi.c)
+  stm32_lsi.c
+  stm32_exti_gpio.c)
 
 if(CONFIG_STM32_USART)
   list(APPEND SRCS stm32_serial.c)
@@ -87,6 +88,10 @@ if(CONFIG_STM32_TIM)
   list(APPEND SRCS stm32_tim.c)
 endif()
 
+if(CONFIG_STM32_LPTIM)
+  list(APPEND SRCS stm32_lptim.c)
+endif()
+
 if(CONFIG_STM32_HAVE_HSI48)
   list(APPEND SRCS stm32_hsi48.c)
 endif()
@@ -113,6 +118,10 @@ endif()
 
 if(CONFIG_STM32_PWM)
   list(APPEND SRCS stm32_pwm.c)
+endif()
+
+if(CONFIG_STM32_IWDG)
+  list(APPEND SRCS stm32_iwdg.c)
 endif()
 
 # Required chip type specific files

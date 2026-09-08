@@ -128,10 +128,22 @@ static int file_vopen(FAR struct file *filep, FAR const char *path,
   inode = desc.node;
   DEBUGASSERT(inode != NULL);
 
+#ifdef CONFIG_FS_LINKS
+  if (INODE_IS_HARDLINK(inode))
+    {
+      /* The inode is a hard link.  The actual inode is referenced
+       * by the i_private field.
+       */
+
+      DEBUGASSERT(inode->i_private != NULL);
+      inode = inode->i_private;
+    }
+
   if (desc.nofollow && INODE_IS_SOFTLINK(inode))
     {
       return -ELOOP;
     }
+#endif
 
 #if defined(CONFIG_BCH) && \
     !defined(CONFIG_DISABLE_MOUNTPOINT) && \
@@ -170,9 +182,31 @@ static int file_vopen(FAR struct file *filep, FAR const char *path,
     }
 #endif
 
-  /* Validate operation support and pseudo-filesystem permissions */
+  /* Enforce directory search (X_OK) on ancestors / mount gates, then
+   * validate open modes.  inode_checkpathperm() takes the tree read lock
+   * for the path walk; for non-mountpoints, hold it again around openperm
+   * so i_mode cannot race with concurrent chmod.
+   */
 
-  ret = inode_checkopenperm(inode, oflags);
+  ret = inode_checkpathperm(inode, 0, 0);
+  if (ret < 0)
+    {
+      goto errout_with_inode;
+    }
+
+#ifndef CONFIG_DISABLE_MOUNTPOINT
+  if (INODE_IS_MOUNTPT(inode))
+    {
+      ret = inode_checkopenperm(inode, oflags);
+    }
+  else
+#endif
+    {
+      inode_rlock();
+      ret = inode_checkopenperm(inode, oflags);
+      inode_runlock();
+    }
+
   if (ret < 0)
     {
       goto errout_with_inode;
@@ -336,7 +370,7 @@ int file_open(FAR struct file *filep, FAR const char *path, int oflags, ...)
 
   if (ret >= OK)
     {
-      atomic_fetch_add(&filep->f_refs, 1);
+      atomic_add(&filep->f_refs, 1);
     }
 
   return ret;

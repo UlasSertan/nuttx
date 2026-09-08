@@ -117,6 +117,60 @@ AMEBA_FWLIB_SRCS += $(TOPDIR)/arch/arm/src/rtl8720f/ameba_app_start.c \
 ifeq ($(CONFIG_RTL8720F_FLASH_FS),y)
 AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_flash_ram.c
 endif
+
+# UART register layer.  The UART driver (arch/.../common/ameba/ameba_uart.c)
+# calls the fwlib UART API, all of which resolves to the ROM symbol table; but
+# the ROM routines index the fwlib data tables (UART_DEV_TABLE, APBPeriph_UARTx)
+# which live in this RAM source and must be compiled in (--gc-sections drops
+# the unused DMA/monitor helpers).
+ifeq ($(CONFIG_AMEBA_UART),y)
+AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_uart.c
+endif
+
+# I2C register layer.  Like the UART one above, the I2C driver
+# (arch/.../common/ameba/ameba_i2c.c) calls the fwlib I2C API, which resolves
+# to the ROM symbol table; the ROM routines index the fwlib data tables that
+# live in this RAM source, so it must be compiled in (--gc-sections drops the
+# unused DMA/slave helpers).
+ifeq ($(CONFIG_AMEBA_I2C),y)
+AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_i2c.c
+endif
+
+# SPI (DesignWare SSI) register layer.  The SPI driver
+# (arch/.../common/ameba/ameba_spi.c) calls the fwlib SSI API; the data tables
+# and helpers it indexes live in this RAM source and must be compiled in
+# (--gc-sections drops the unused DMA/interrupt helpers).
+ifeq ($(CONFIG_AMEBA_SPI),y)
+AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_spi.c
+endif
+
+# PWM/timer register layer.  The time-base entry points (RTIM_TimeBaseInit/
+# StructInit/Cmd/INTConfig/GetCount) are in ROM, but the compare/period and
+# interrupt-clear helpers the PWM driver (ameba_pwm.c: RTIM_CCStructInit/
+# CCxInit/CCRxSet/CCxCmd/ChangePeriod/PrescalerConfig) and the timer driver
+# (ameba_timer.c: RTIM_INTClear/ChangePeriod) call are compiled from this RAM
+# source and linked in (--gc-sections drops the unused input-capture paths).
+ifneq (,$(filter y,$(CONFIG_AMEBA_PWM) $(CONFIG_AMEBA_TIMER)))
+AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_tim.c
+endif
+
+# ADC (SAR) register layer.  The ADC driver
+# (arch/.../common/ameba/ameba_adc.c) calls the fwlib ADC API; the data tables
+# and helpers it indexes live in this RAM source and must be compiled in
+# (--gc-sections drops the unused interrupt/timer-trigger helpers).
+ifeq ($(CONFIG_AMEBA_ADC),y)
+AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_adc.c
+endif
+
+# RTC register layer.  The whole fwlib RTC API the RTC driver
+# (arch/.../common/ameba/ameba_rtc.c) calls -- RTC_Init/StructInit,
+# RTC_SetTime/GetTime and RTC_SetAlarm/GetAlarm/AlarmStructInit/AlarmCmd/
+# AlarmClear -- is compiled from this RAM source (the _LONG_CALL_ prototypes
+# resolve here, not to ROM) and must be linked in.
+ifeq ($(CONFIG_AMEBA_RTC),y)
+AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_rtc.c
+endif
+
 # -Wno-int-conversion: the vendored SDK passes NULL to irq_register()'s u32
 # "Data" (interrupt context) argument in many places -- an intentional
 # NULL-as-context idiom.  Silence -Wint-conversion for the SDK fwlib sources

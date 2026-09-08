@@ -33,6 +33,7 @@
 #include <string.h>
 #include <assert.h>
 #include <nuttx/debug.h>
+#include <syslog.h>
 #include <errno.h>
 
 #include <sys/param.h>
@@ -58,9 +59,30 @@
 #include <nuttx/cache.h>
 #include "arm_internal.h"
 
-#include "hardware/stm32_syscfg.h"
 #include "hardware/stm32_pinmap.h"
 #include "stm32_gpio.h"
+
+#ifdef CONFIG_STM32_HAVE_SBS
+#  include "hardware/stm32h7rsxx_sbs.h"
+#else
+#  include "hardware/stm32_syscfg.h"
+#endif
+
+/* The PHY interface selection lives in SBS on the H7R/S and in SYSCFG
+ * everywhere else.  Only the names differ.
+ */
+
+#ifdef CONFIG_STM32_HAVE_SBS
+#  define ETH_PHYSEL_REG   STM32_SBS_PMCR
+#  define ETH_PHYSEL_MASK  SBS_PMCR_ETH_PHYSEL_MASK
+#  define ETH_PHYSEL_MII   SBS_PMCR_ETH_PHYSEL_GMII_MII
+#  define ETH_PHYSEL_RMII  SBS_PMCR_ETH_PHYSEL_RMII
+#else
+#  define ETH_PHYSEL_REG   STM32_SYSCFG_PMC
+#  define ETH_PHYSEL_MASK  SYSCFG_PMC_EPIS_MASK
+#  define ETH_PHYSEL_MII   SYSCFG_PMC_EPIS_MII
+#  define ETH_PHYSEL_RMII  SYSCFG_PMC_EPIS_RMII
+#endif
 #include "stm32_rcc.h"
 #include "stm32_ethernet.h"
 #include "stm32_uid.h"
@@ -95,9 +117,9 @@
 
 /* Select work queue */
 
-#  if defined(CONFIG_STM32H7_ETHMAC_HPWORK)
+#  if defined(CONFIG_STM32_ETHMAC_HPWORK)
 #    define ETHWORK HPWORK
-#  elif defined(CONFIG_STM32H7_ETHMAC_LPWORK)
+#  elif defined(CONFIG_STM32_ETHMAC_LPWORK)
 #    define ETHWORK LPWORK
 #  else
 #    define ETHWORK LPWORK
@@ -244,8 +266,8 @@
 
 #define OPTIMAL_ETH_BUFSIZE ((CONFIG_NET_ETH_PKTSIZE + 4 + 15) & ~15)
 
-#ifdef CONFIG_STM32H7_ETH_BUFSIZE
-#  define ETH_BUFSIZE CONFIG_STM32H7_ETH_BUFSIZE
+#ifdef CONFIG_STM32_ETH_BUFSIZE
+#  define ETH_BUFSIZE CONFIG_STM32_ETH_BUFSIZE
 #else
 #  define ETH_BUFSIZE OPTIMAL_ETH_BUFSIZE
 #endif
@@ -267,6 +289,9 @@
 #endif
 #ifndef CONFIG_STM32_ETH_NTXDESC
 #  define CONFIG_STM32_ETH_NTXDESC 4
+#endif
+#ifndef CONFIG_STM32_ETH_TXTIMEOUT
+#  define CONFIG_STM32_ETH_TXTIMEOUT 60
 #endif
 
 /* We need at least one more free buffer than transmit buffers */
@@ -328,9 +353,9 @@
 
 /* Timing *******************************************************************/
 
-/* TX timeout = 1 minute */
+/* TX timeout */
 
-#define STM32_TXTIMEOUT   (60*CLK_TCK)
+#define STM32_TXTIMEOUT   (CONFIG_STM32_ETH_TXTIMEOUT*CLK_TCK)
 
 /* PHY reset/configuration delays in milliseconds */
 
@@ -1126,6 +1151,17 @@ static struct eth_desc_s *stm32_get_next_txdesc(struct stm32_ethmac_s *priv,
  *   interrupt handling logic.
  *
  ****************************************************************************/
+
+static bool stm32_txringfull(FAR struct stm32_ethmac_s *priv)
+{
+  /* The ring is full when the head descriptor still belongs to the DMA.
+   * Transmitting into it anyway corrupts a frame in flight;  with
+   * assertions built in it panics from the RX work queue instead.
+   */
+
+  return (priv->txhead->des3 & ETH_TDES3_RD_OWN) != 0 ||
+         priv->txhead->des0 != 0;
+}
 
 static int stm32_transmit(struct stm32_ethmac_s *priv)
 {
@@ -1927,7 +1963,7 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
        * tap
        */
 
-     pkt_input(&priv->dev);
+      pkt_input(&priv->dev);
 #endif
 
       /* Check if the packet is a valid size for the network buffer
@@ -1968,9 +2004,20 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
 
           if (priv->dev.d_len > 0)
             {
-              /* And send the packet */
+              /* Send the reply, unless the TX ring is full. The reply
+               * to received data is almost always an acknowledgement, and
+               * a peer that misses one retransmits;  overwriting a frame
+               * the DMA still owns recovers from nothing.
+               */
 
-              stm32_transmit(priv);
+              if (!stm32_txringfull(priv))
+                {
+                  stm32_transmit(priv);
+                }
+              else
+                {
+                  priv->dev.d_len = 0;
+                }
             }
         }
       else
@@ -1991,9 +2038,20 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
 
           if (priv->dev.d_len > 0)
             {
-              /* And send the packet */
+              /* Send the reply, unless the TX ring is full. The reply
+               * to received data is almost always an acknowledgement, and
+               * a peer that misses one retransmits;  overwriting a frame
+               * the DMA still owns recovers from nothing.
+               */
 
-              stm32_transmit(priv);
+              if (!stm32_txringfull(priv))
+                {
+                  stm32_transmit(priv);
+                }
+              else
+                {
+                  priv->dev.d_len = 0;
+                }
             }
         }
       else
@@ -2014,7 +2072,19 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
 
           if (priv->dev.d_len > 0)
             {
-              stm32_transmit(priv);
+              /* Send the reply, unless the TX ring is full. A peer
+               * that misses an ARP reply asks again;  overwriting a
+               * frame the DMA still owns recovers from nothing.
+               */
+
+              if (!stm32_txringfull(priv))
+                {
+                  stm32_transmit(priv);
+                }
+              else
+                {
+                  priv->dev.d_len = 0;
+                }
             }
         }
       else
@@ -3027,6 +3097,7 @@ static int stm32_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
         {
           struct mii_ioctl_data_s *req =
             (struct mii_ioctl_data_s *)((uintptr_t)arg);
+
           req->phy_id = CONFIG_STM32_PHYADDR;
           ret = OK;
         }
@@ -3036,6 +3107,7 @@ static int stm32_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
         {
           struct mii_ioctl_data_s *req =
             (struct mii_ioctl_data_s *)((uintptr_t)arg);
+
           ret = mdio_read(priv->mdio,
             req->phy_id, req->reg_num, &req->val_out);
         }
@@ -3045,6 +3117,7 @@ static int stm32_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
         {
           struct mii_ioctl_data_s *req =
             (struct mii_ioctl_data_s *)((uintptr_t)arg);
+
           ret = mdio_write(priv->mdio,
             req->phy_id, req->reg_num, req->val_in);
         }
@@ -3349,10 +3422,26 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
       return -ETIMEDOUT;
     }
 
-  /* Enable auto-negotiation */
+#ifdef CONFIG_STM32_AUTONEG_10FD_ONLY
+  /* Advertise only 10BASE-T full duplex, so that negotiation lands
+   * there on both ends.  See the help text of the option for why a
+   * board would want a slower link on purpose.
+   */
+
+  ret = mdio_write(priv->mdio, CONFIG_STM32_PHYADDR, MII_ADVERTISE,
+                   MII_ADVERTISE_10BASETXFULL | MII_ADVERTISE_CSMA);
+  if (ret < 0)
+    {
+      nerr("ERROR: Failed to write the PHY ANAR: %d\n", ret);
+      return ret;
+    }
+#endif
+
+  /* Enable and restart auto-negotiation */
 
   ret = mdio_write(priv->mdio,
-    CONFIG_STM32_PHYADDR, MII_MCR, MII_MCR_ANENABLE);
+    CONFIG_STM32_PHYADDR, MII_MCR,
+    MII_MCR_ANENABLE | MII_MCR_ANRESTART);
   if (ret < 0)
     {
       nerr("ERROR: Failed to enable auto-negotiation: %d\n", ret);
@@ -3462,7 +3551,12 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
   phyval |= MII_MCR_SPEED100;
 #endif
 
-  ret = stm32_phywrite(CONFIG_STM32_PHYADDR, MII_MCR, phyval, 0xffff);
+  /* mdio_write, not stm32_phywrite:  this driver never had the latter.
+   * The call was carried over from the F7 driver and nothing had ever
+   * built this path.
+   */
+
+  ret = mdio_write(priv->mdio, CONFIG_STM32_PHYADDR, MII_MCR, phyval);
   if (ret < 0)
     {
       nerr("ERROR: Failed to write the PHY MCR: %d\n", ret);
@@ -3481,9 +3575,14 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
 #endif
 #endif
 
-  ninfo("Duplex: %s Speed: %d MBps\n",
-        priv->fduplex ? "FULL" : "HALF",
-        priv->mbps100 ? 100 : 10);
+  /* Diagnostic: say what was negotiated even without net debug.  A
+   * duplex mismatch looks exactly like a bad cable and nothing else
+   * says which of the two it is.
+   */
+
+  syslog(LOG_INFO, "stm32_eth: link %s-duplex %d Mbps\n",
+         priv->fduplex ? "full" : "half",
+         priv->mbps100 ? 100 : 10);
 
   return OK;
 }
@@ -3509,10 +3608,10 @@ static inline void stm32_selectmii(void)
 {
   uint32_t regval;
 
-  regval  = getreg32(STM32_SYSCFG_PMC);
-  regval &= ~SYSCFG_PMC_EPIS_MASK;
-  regval |= SYSCFG_PMC_EPIS_MII;
-  putreg32(regval, STM32_SYSCFG_PMC);
+  regval  = getreg32(ETH_PHYSEL_REG);
+  regval &= ~ETH_PHYSEL_MASK;
+  regval |= ETH_PHYSEL_MII;
+  putreg32(regval, ETH_PHYSEL_REG);
 }
 #endif
 
@@ -3535,10 +3634,10 @@ static inline void stm32_selectrmii(void)
 {
   uint32_t regval;
 
-  regval  = getreg32(STM32_SYSCFG_PMC);
-  regval &= ~SYSCFG_PMC_EPIS_MASK;
-  regval |= SYSCFG_PMC_EPIS_RMII;
-  putreg32(regval, STM32_SYSCFG_PMC);
+  regval  = getreg32(ETH_PHYSEL_REG);
+  regval &= ~ETH_PHYSEL_MASK;
+  regval |= ETH_PHYSEL_RMII;
+  putreg32(regval, ETH_PHYSEL_REG);
 }
 #endif
 

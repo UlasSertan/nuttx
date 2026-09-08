@@ -208,16 +208,28 @@ list(APPEND AMEBA_EXTRA_LIBS ${_crtbegin} ${_crtend} -lm -lstdc++)
 
 set(AMEBA_KM4_LD ${AMEBA_KM4_PROJ}/ld)
 set(AMEBA_IMG2_LD ${AMEBA_KM4_LD}/ameba_img2_all.ld)
-set(AMEBA_ROM_LD ${AMEBA_KM4_LD}/ameba_rom_symbol_acut_s.ld)
 set(GENLDSCRIPT ${AMEBA_PREBUILT}/ld.script.gen)
+
+# ROM symbol linker script(s), appended after the preprocessed image2 script.
+# Most ICs (rtl8721dx / rtl8720f) use a single script; rtl8721f overrides
+# AMEBA_ROM_LDS in its arch CMakeLists with four scripts (secure + wifi + os +
+# NS) so the ROM BSS (__rom_bss_*_ns__) and WiFi ROM (rtw_*) symbols resolve --
+# mirroring that IC's ameba_board.mk cat order.
+if(NOT DEFINED AMEBA_ROM_LDS)
+  set(AMEBA_ROM_LDS ameba_rom_symbol_acut_s.ld)
+endif()
+set(AMEBA_ROM_LD_PATHS "")
+foreach(_ld ${AMEBA_ROM_LDS})
+  list(APPEND AMEBA_ROM_LD_PATHS ${AMEBA_KM4_LD}/${_ld})
+endforeach()
 
 message(
   STATUS "ameba: generating ld.script.gen (AP ${AMEBA_AP_PROJECT} image2)")
 execute_process(
   COMMAND
     sh ${AMEBA_TOOLS_DIR}/ameba_gen_ldscript.sh ${CMAKE_C_COMPILER}
-    ${AMEBA_IMG2_LD} ${AMEBA_ROM_LD} ${AMEBA_AUTOCONF} ${AMEBA_PREBUILT}
-    ${AMEBA_AP_PROJECT} ${GENLDSCRIPT}
+    ${AMEBA_IMG2_LD} ${AMEBA_AUTOCONF} ${AMEBA_PREBUILT} ${AMEBA_AP_PROJECT}
+    ${GENLDSCRIPT} ${AMEBA_ROM_LD_PATHS}
   RESULT_VARIABLE _rc)
 if(NOT _rc EQUAL 0)
   message(FATAL_ERROR "ameba_gen_ldscript.sh failed (rc=${_rc})")
@@ -247,7 +259,7 @@ target_link_options(
   -Wl,--defsym=_sdata=__sram_image2_start__
   -Wl,--defsym=_edata=__sram_image2_start__
   -Wl,--defsym=_eronly=__sram_image2_start__
-  -Wl,-Map=${CMAKE_BINARY_DIR}/nuttx.map
+  -Wl,-Map=${NUTTX_BINARY_DIR}/nuttx.map
   ${AMEBA_EXTRA_LINK_OPTIONS})
 
 # Append to NUTTX_EXTRA_LIBRARIES (not target_link_libraries): the top-level
@@ -267,19 +279,19 @@ if(EXISTS ${AMEBA_TOOLS_DIR}/ameba_package.sh)
   add_custom_target(
     nuttx_post_build
     DEPENDS nuttx
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${NUTTX_BINARY_DIR}
     COMMENT "PACK nuttx.bin (Ameba AP + NP image2)")
   add_custom_command(
     TARGET nuttx_post_build
     POST_BUILD
     COMMAND
       ${CMAKE_COMMAND} -E env
-      "AMEBA_FLASH_HINT=AMEBA_PORT=/dev/ttyUSB0 cmake --build ${CMAKE_BINARY_DIR} --target flash"
+      "AMEBA_FLASH_HINT=AMEBA_PORT=/dev/ttyUSB0 cmake --build ${NUTTX_BINARY_DIR} --target flash"
       sh ${AMEBA_TOOLS_DIR}/ameba_package.sh ${AMEBA_SDK} ${AMEBA_PY_SOC}
       ${AMEBA_SOC_NAME} ${AMEBA_PREBUILT} ${AMEBA_AP_PROJECT} ${AMEBA_KM_PROJ}
-      ${AMEBA_NP_TARGET} ${AMEBA_TOOLCHAIN_DIR} ${CMAKE_BINARY_DIR}/nuttx
-      ${CMAKE_BINARY_DIR}/nuttx.bin
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      ${AMEBA_NP_TARGET} ${AMEBA_TOOLCHAIN_DIR} ${NUTTX_BINARY_DIR}/nuttx
+      ${NUTTX_BINARY_DIR}/nuttx.bin
+    WORKING_DIRECTORY ${NUTTX_BINARY_DIR}
     # USES_TERMINAL -> Ninja "console" pool: stream the (long) SDK NP-build +
     # packaging output live instead of buffering it until the step finishes.
     USES_TERMINAL COMMAND_EXPAND_LISTS)
@@ -306,8 +318,8 @@ if(AMEBA_FLASH_PROFILE AND NOT TARGET flash)
     COMMAND
       ${CMAKE_COMMAND} -E env sh ${AMEBA_TOOLS_DIR}/ameba_flash.sh ${AMEBA_SDK}
       ${AMEBA_FLASH_PROFILE} ${AMEBA_AUTOCONF} ${AMEBA_PREBUILT}
-      ${CMAKE_BINARY_DIR}/nuttx.bin
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      ${NUTTX_BINARY_DIR}/nuttx.bin
+    WORKING_DIRECTORY ${NUTTX_BINARY_DIR}
     USES_TERMINAL VERBATIM
     COMMENT "Flashing Ameba ${AMEBA_PY_SOC} over ${AMEBA_PORT} (AMEBA_PORT env)"
   )

@@ -33,10 +33,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define CKPCR               0xB0003040
+#define CKPCR               0xb0003040
 #define CKPCR_CK32CTL_RTCLK (3 << 1)
 
-#define JZINTC_BASE         0xB0001000
+#define JZINTC_BASE         0xb0001000
 
 #define ICMSR0              (JZINTC_BASE + 0x08)
 #define ICMCR0              (JZINTC_BASE + 0x0C)
@@ -45,7 +45,7 @@
 #define ICMCR1              (JZINTC_BASE + 0x2C)
 #define ICPR1               (JZINTC_BASE + 0x30)
 
-#define JZTMR_BASE          0xB0002000
+#define JZTMR_BASE          0xb0002000
 
 #define WD_TDR              (JZTMR_BASE + 0x00) // u16: Watchdog Timer Data
 #define WD_TCER             (JZTMR_BASE + 0x04) // u8 : Watchdog Counter Enable
@@ -67,26 +67,77 @@
 #define OSTCSR              (JZTMR_BASE + 0xec)
 
 #define TESR                (JZTMR_BASE + 0x14)
-
-#define TESR_OSTEN          (1 << 15)
-#define TESR_TCEN(n)        (1 << (n))
+#  define TESR_OSTEN        (1 << 15)
+#  define TESR_TCEN(n)      (1 << (n))
 
 #define TMSR                (JZTMR_BASE + 0x34)
 #define TMCR                (JZTMR_BASE + 0x38)
-#define TMCR_OSTMCL         (1 << 15)
-#define TMCR_FMCL5          (1 << 5)
-#define TMCR_FMCL(n)        (1 << (n))
+#  define TMCR_OSTMCL       (1 << 15)
+#  define TMCR_FMCL5        (1 << 5)
+#  define TMCR_FMCL(n)      (1 << (n))
 
 #define TFR                 (JZTMR_BASE + 0x20)
 
 #define TFCR                (JZTMR_BASE + 0x28)
-#define TFCR_OSTFCL         (1 << 15)
-#define TFCR_FFCL5          (1 << 5)
-#define TFCR_FFCL(n)        (1 << (n))
+#  define TFCR_OSTFCL       (1 << 15)
+#  define TFCR_FFCL5        (1 << 5)
+#  define TFCR_FFCL(n)      (1 << (n))
 
 #define TCNT(n)             (JZTMR_BASE + 0x48 + (n)*0x10)
 #define TCSR(n)             (JZTMR_BASE + 0x4C + (n)*0x10)
 #define TDFR(n)             (JZTMR_BASE + 0x40 + (n)*0x10)
+
+#define JZPMC_BASE          0xb0000000
+
+#define JZ_EXTCLK           48000000U
+
+#define PCR_PLLM(r)         ((r >> 19) & 0x1FFF)
+#define PCR_PLLN(r)         ((r >> 13) & 0x3F)
+#define PCR_PLLOD(r)        ((r >> 9) & 0xF)
+
+#define CPMPCR_REG          (JZPMC_BASE + 0x14)
+#define CPVPCR_REG          (JZPMC_BASE + 0x1c)
+
+#define CLKGR0_REG          (JZPMC_BASE + 0x20)
+#  define CLKGR0_OTG0       (1 << 2)
+#  define CLKGR0_UHC        (1 << 24)
+#  define CLKGR0_LCD        (1 << 28)
+#  define CLKGR0_TVE        (1 << 27)
+
+#define OPCR_REG            (JZPMC_BASE + 0x24)
+#  define OPCR_SPENDN1      (1 << 6)
+
+#define CLKGR1_REG          (JZPMC_BASE + 0x28)
+#  define CLKGR1_HDMI       (1 << 9)
+
+#define USBPCR_REG          (JZPMC_BASE + 0x3c)
+#  define USBPCR_POR        (1 << 22)
+
+#define USBPCR1_REG         (JZPMC_BASE + 0x48)
+#  define REFCLK_DIV_MSK    0xfcffffff  /* clears bits 25:24 */
+#  define REFCLK_DIV_48MHZ  0x02000000  /* bits 25:24 */
+#  define WORD_IF_16BIT     0x000c0000  /* bits 19:18 */
+
+#define LP1CDR_REG          (JZPMC_BASE + 0x54)
+#  define LPCDR_VAL         0x15
+#  define LPCS_MPLL         0x40000000
+#  define LPCS_VPLL         0x80000000
+#  define CE_LCD            (1 << 28)
+#  define LCD_BUSY          (1 << 27)
+
+#define HDMICDR_REG         (JZPMC_BASE + 0x8c)
+#  define HPCS_SCLK_A       0x00000000
+#  define HPCS_MPLL         0x40000000
+#  define HPCS_VPLL         0x80000000
+#  define CE_HDMI           (1 << 29)
+#  define HDMI_BUSY         (1 << 28)
+
+#define SRBC_REG            (JZPMC_BASE + 0xc4)
+#  define SRBC_UHC_SR       (1 << 14)
+
+#define ERNG_REG            (JZPMC_BASE + 0xd8)
+#  define ENABLE_RNG        (1 << 0)
+#define RNG_REG             (JZPMC_BASE + 0xdc)
 
 #define TICKS_PER_MS        (48000/16)
 

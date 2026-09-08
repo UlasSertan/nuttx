@@ -24,10 +24,45 @@ include $(TOPDIR)/Make.defs
 
 CSRCS = esp32p4_boot.c esp32p4_bringup.c
 
+ifeq ($(CONFIG_ESP32P4_TAB5_IOEXPANDER),y)
+  CSRCS += esp32p4_ioexpander.c
+endif
+
+ifeq ($(CONFIG_ESP32P4_TAB5_HMI_POWER),y)
+  CSRCS += esp32p4_hmi_power.c
+endif
+
+ifeq ($(CONFIG_MMCSD_SPI),y)
+  CSRCS += esp32p4_sd_power.c
+endif
+
+ifeq ($(CONFIG_ESP32P4_TAB5_LCD),y)
+  CSRCS += esp32p4_display.c esp32p4_mipi_dpi.c
+  ifeq ($(CONFIG_ESP32P4_TAB5_LCD_ST7121),y)
+    CSRCS += esp32p4_lcd_st7121.c
+  else ifeq ($(CONFIG_ESP32P4_TAB5_LCD_ST7123),y)
+    CSRCS += esp32p4_lcd_st7123.c
+  else ifeq ($(CONFIG_ESP32P4_TAB5_LCD_ILI9881C),y)
+    CSRCS += esp32p4_lcd_ili9881c.c
+  endif
+endif
+
+ifeq ($(CONFIG_ESP32P4_TAB5_TOUCHSCREEN),y)
+  ifeq ($(CONFIG_ESP32P4_TAB5_TOUCH_ST7123),y)
+    CSRCS += esp32p4_touch_st7123.c
+  else ifeq ($(CONFIG_ESP32P4_TAB5_TOUCH_GT911),y)
+    CSRCS += esp32p4_touch_gt911.c
+  endif
+endif
+
 ifeq ($(CONFIG_BOARDCTL),y)
   ifeq ($(CONFIG_BOARDCTL_RESET),y)
     CSRCS += esp32p4_reset.c
   endif
+endif
+
+ifeq ($(CONFIG_DEV_GPIO),y)
+  CSRCS += esp32p4_gpio.c
 endif
 
 DEPPATH += --dep-path board

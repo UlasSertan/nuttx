@@ -96,16 +96,21 @@ void nxsem_wait_irq(FAR struct tcb_s *wtcb, int errcode)
 
       dq_rem((FAR dq_entry_t *)wtcb, SEM_WAITLIST(sem));
 
-      /* This restores the value to what it was before the previous sem_wait.
-       * This caused the thread to be blocked in the first place.
-       *
-       * For mutexes, the holder is updated by the thread itself
-       * when it exits nxsem_wait
+      /* Restore the semaphore state changed by the previous sem_wait().
+       * For mutexes, the holder TID remains unchanged, but the blocking bit
+       * must be cleared when the timed-out task was the last waiter.
        */
 
-      if (!mutex)
+      if (mutex)
         {
-          atomic_fetch_add(NXSEM_COUNT(sem), 1);
+          if (dq_empty(SEM_WAITLIST(sem)))
+            {
+              atomic_and(NXSEM_MHOLDER(sem), ~NXSEM_MBLOCKING_BIT);
+            }
+        }
+      else
+        {
+          atomic_add(NXSEM_COUNT(sem), 1);
         }
 
       /* Indicate that the wait is over. */

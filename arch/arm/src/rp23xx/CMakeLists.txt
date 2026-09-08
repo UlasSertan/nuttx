@@ -36,8 +36,7 @@ list(
   rp23xx_pll.c)
 
 if(CONFIG_SMP)
-  list(APPEND SRCS rp23xx_cpustart.c rp23xx_smpcall.c rp23xx_cpuidlestack.c
-       rp23xx_testset.c)
+  list(APPEND SRCS rp23xx_cpustart.c rp23xx_smpcall.c rp23xx_cpuidlestack.c)
 endif()
 
 if(CONFIG_ARCH_HAVE_MULTICPU)
@@ -56,8 +55,20 @@ if(CONFIG_RP23XX_PWM)
   list(APPEND SRCS rp23xx_pwm.c)
 endif()
 
+if(CONFIG_RP23XX_TIMER)
+  list(APPEND SRCS rp23xx_timer.c)
+endif()
+
+if(CONFIG_RP23XX_SYSTIMER_TICKLESS)
+  list(APPEND SRCS rp23xx_oneshot.c)
+endif()
+
 if(CONFIG_RP23XX_I2C)
   list(APPEND SRCS rp23xx_i2c.c)
+endif()
+
+if(CONFIG_RP23XX_RNG)
+  list(APPEND SRCS rp23xx_rng.c)
 endif()
 
 if(CONFIG_RP23XX_I2C_SLAVE)
@@ -87,6 +98,26 @@ endif()
 
 if(CONFIG_CRYPTO_CRYPTODEV_HARDWARE)
   list(APPEND SRCS rp23xx_crypto.c)
+endif()
+
+if(CONFIG_RP23XX_FLASH_MTD)
+  list(APPEND SRCS rp23xx_flash_mtd.c)
+endif()
+
+if(CONFIG_RP23XX_PSRAM)
+  list(APPEND SRCS rp23xx_psram.c rp23xx_heaps.c)
+endif()
+
+if(CONFIG_RP23XX_RTC)
+  list(APPEND SRCS rp23xx_rtc.c)
+endif()
+
+if(CONFIG_RP23XX_OTP)
+  list(APPEND SRCS rp23xx_otp.c)
+endif()
+
+if(CONFIG_IEEE80211_INFINEON_CYW43439)
+  list(APPEND SRCS rp23xx_cyw43439.c)
 endif()
 
 target_sources(arch PRIVATE ${SRCS})

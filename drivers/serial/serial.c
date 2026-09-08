@@ -79,6 +79,32 @@
 
 #define POLL_DELAY_USEC 1000
 
+/* States for the local-echo VT100/ANSI escape sequence detector used by
+ * uart_readv() below (dev->escape).  This does not interpret the
+ * sequence, it only decides how many bytes to swallow from the local
+ * echo so that raw escape sequences typed by the user are not rendered
+ * as visible garbage; the sequence bytes themselves are still delivered
+ * to the reader unmodified either way.
+ *
+ * Two forms are recognized:
+ *
+ *   CSI: ESC '[' <zero or more parameter/intermediate bytes, 0x20-0x3f>
+ *        <one final byte, 0x40-0x7e>
+ *        e.g. ESC[D (left arrow), ESC[3~ (Delete), ESC[1;5D (Ctrl+Left)
+ *
+ *   SS3: ESC 'O' <one final byte>
+ *        e.g. ESC O F (End, as sent by xterm and many other terminals
+ *        that otherwise use CSI for the plain arrow keys)
+ *
+ * Any other byte following ESC is treated as an unrecognized two-byte
+ * "ESC x" sequence; 'x' itself is echoed normally, as before.
+ */
+
+#define UART_ESCAPE_NONE  0  /* Not in an escape sequence */
+#define UART_ESCAPE_START 1  /* Saw ESC, waiting for '[', 'O', or other */
+#define UART_ESCAPE_CSI   2  /* Saw "ESC [", consuming CSI bytes */
+#define UART_ESCAPE_SS3   3  /* Saw "ESC O", waiting for the final byte */
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -1063,26 +1089,58 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
 
           if (dev->tc_lflag & ECHO)
             {
-              /* Check for the beginning of a VT100 escape sequence, 3 byte */
-
               if (ch == ASCII_ESC)
                 {
-                  /* Mark that we should skip 2 more bytes */
+                  /* Start (or restart) tracking a possible escape
+                   * sequence.
+                   */
 
-                  dev->escape = 2;
+                  dev->escape = UART_ESCAPE_START;
                   continue;
                 }
-              else if (dev->escape == 2 && ch != ASCII_LBRACKET)
+              else if (dev->escape == UART_ESCAPE_START)
                 {
-                  /* It's not an <esc>[x 3 byte sequence, show it */
+                  /* First byte after ESC selects the sequence type */
 
-                  dev->escape = 0;
+                  if (ch == ASCII_LBRACKET)
+                    {
+                      dev->escape = UART_ESCAPE_CSI;
+                      continue;
+                    }
+                  else if (ch == ASCII_O)
+                    {
+                      dev->escape = UART_ESCAPE_SS3;
+                      continue;
+                    }
+
+                  /* Not CSI or SS3 -- an unrecognized two-byte "ESC x"
+                   * sequence.  Fall through and echo 'x' normally, as
+                   * before.
+                   */
+
+                  dev->escape = UART_ESCAPE_NONE;
                 }
-              else if (dev->escape > 0)
+              else if (dev->escape == UART_ESCAPE_CSI)
                 {
-                  /* Skipping character count down */
+                  /* Consuming CSI parameter/intermediate bytes
+                   * (0x20-0x3f); the sequence ends with exactly one
+                   * final byte in 0x40-0x7e.
+                   */
 
-                  dev->escape--;
+                  if (ch >= 0x40 && ch <= 0x7e)
+                    {
+                      dev->escape = UART_ESCAPE_NONE;
+                    }
+
+                  continue;
+                }
+              else if (dev->escape == UART_ESCAPE_SS3)
+                {
+                  /* The byte following "ESC O" is always the final
+                   * (and only) byte.
+                   */
+
+                  dev->escape = UART_ESCAPE_NONE;
                   continue;
                 }
 
@@ -1422,6 +1480,9 @@ static ssize_t uart_writev(FAR struct file *filep, FAR struct uio *uio)
 {
   FAR struct inode *inode    = filep->f_inode;
   FAR uart_dev_t   *dev      = inode->i_private;
+  FAR const char   *segbuf   = NULL;
+  size_t            seglen   = 0;
+  size_t            nseg     = 0;
   ssize_t           nwritten;
   ssize_t           buflen;
   bool              oktoblock;
@@ -1496,9 +1557,22 @@ static ssize_t uart_writev(FAR struct file *filep, FAR struct uio *uio)
    */
 
   uart_disabletxint(dev);
-  for (; buflen; uio_advance(uio, 1), buflen--)
+  for (; buflen; buflen--, nseg++)
     {
-      uio_copyto(uio, 0, &ch, 1);
+      if (nseg >= seglen)
+        {
+          /* Consume the current segment and take a pointer to the next.
+           * uio_advance() steps over any zero-length iovec.
+           */
+
+          uio_advance(uio, nseg);
+          segbuf = (FAR const char *)uio->uio_iov->iov_base +
+                   uio->uio_offset_in_iov;
+          seglen = uio->uio_iov->iov_len - uio->uio_offset_in_iov;
+          nseg   = 0;
+        }
+
+      ch  = segbuf[nseg];
       ret = OK;
 
       /* Do output post-processing */
@@ -1572,6 +1646,10 @@ static ssize_t uart_writev(FAR struct file *filep, FAR struct uio *uio)
           break;
         }
     }
+
+  /* Consume the bytes that were successfully queued */
+
+  uio_advance(uio, nseg);
 
   if (dev->xmit.head != dev->xmit.tail)
     {

@@ -55,6 +55,81 @@ void rtl8720f_boardinitialize(void);
 
 int rtl8720f_bringup(void);
 
+#ifdef CONFIG_AMEBA_SPI
+/****************************************************************************
+ * Name: rtl8720f_spi_initialize
+ *
+ * Description:
+ *   Register the board's SPI master buses at /dev/spiN.
+ *
+ ****************************************************************************/
+
+int rtl8720f_spi_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_PWM
+/****************************************************************************
+ * Name: rtl8720f_pwm_initialize
+ *
+ * Description:
+ *   Register the board's PWM timer at /dev/pwm0.
+ *
+ ****************************************************************************/
+
+int rtl8720f_pwm_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_ADC
+/****************************************************************************
+ * Name: rtl8720f_adc_initialize
+ *
+ * Description:
+ *   Register the board's ADC channels at /dev/adc0.
+ *
+ ****************************************************************************/
+
+int rtl8720f_adc_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_RTC
+/****************************************************************************
+ * Name: rtl8720f_rtc_initialize
+ *
+ * Description:
+ *   Register the board's RTC at /dev/rtc0
+ *   (boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_rtc.c).
+ *
+ ****************************************************************************/
+
+int rtl8720f_rtc_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_WDG
+/****************************************************************************
+ * Name: rtl8720f_wdg_initialize
+ *
+ * Description:
+ *   Register the board's watchdog at /dev/watchdog0
+ *   (boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_wdg.c).
+ *
+ ****************************************************************************/
+
+int rtl8720f_wdg_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_TIMER
+/****************************************************************************
+ * Name: rtl8720f_timer_initialize
+ *
+ * Description:
+ *   Register the board's timers at /dev/timer0 (TIM1) and /dev/timer1
+ *   (TIM2) (boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_timer.c).
+ *
+ ****************************************************************************/
+
+int rtl8720f_timer_initialize(void);
+#endif
+
 #ifdef CONFIG_RTL8720F_WIFI
 /****************************************************************************
  * Name: rtl8720f_wifi_initialize
@@ -94,6 +169,47 @@ void ameba_ipc_initialize(void);
  ****************************************************************************/
 
 int ameba_flash_fs_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_GPIO
+/****************************************************************************
+ * Name: rtl8720f_gpio_initialize
+ *
+ * Description:
+ *   Register the board's GPIO pins with the NuttX GPIO upper half
+ *   (boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_gpio.c).
+ *
+ ****************************************************************************/
+
+int rtl8720f_gpio_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_UART
+/****************************************************************************
+ * Name: rtl8720f_uart_initialize
+ *
+ * Description:
+ *   Register the board's general-purpose UART ports with the NuttX serial
+ *   upper half at /dev/ttyS1 and up
+ *   (boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_uart.c).
+ *
+ ****************************************************************************/
+
+int rtl8720f_uart_initialize(void);
+#endif
+
+#ifdef CONFIG_AMEBA_I2C
+/****************************************************************************
+ * Name: rtl8720f_i2c_initialize
+ *
+ * Description:
+ *   Register the board's I2C master buses with the NuttX I2C character
+ *   driver at /dev/i2cN
+ *   (boards/arm/rtl8720f/rtl8720f_evb/src/rtl8720f_i2c.c).
+ *
+ ****************************************************************************/
+
+int rtl8720f_i2c_initialize(void);
 #endif
 
 #endif /* __ASSEMBLY__ */

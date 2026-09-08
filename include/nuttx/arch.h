@@ -253,8 +253,18 @@ extern initializer_t _einit[];
  * Name: up_fork
  *
  * Description:
- *   The up_fork() function is the base of fork() function that provided in
- *   libc, and fork() is implemented as a wrapper of up_fork() function.
+ *   Architecture-specific base of both cloning primitives.  It snapshots the
+ *   caller's registers and hands them to the common code, which builds the
+ *   child from them; `vfork' says which primitive was called and so which
+ *   memory semantics the child gets.
+ *
+ * Input Parameters:
+ *   vfork - true for vfork():  the child shares the parent's memory and the
+ *           parent is suspended until the child _exit()s or exec()s.
+ *           false for POSIX fork():  the child receives its own copy of the
+ *           parent's memory at the same virtual addresses and runs
+ *           concurrently.  Only available where CONFIG_ARCH_HAVE_FORK is
+ *           selected.
  *
  * Returned Value:
  *   Upon successful completion, up_fork() returns 0 to the child process
@@ -264,7 +274,9 @@ extern initializer_t _einit[];
  *
  ****************************************************************************/
 
-pid_t up_fork(void);
+#if defined(CONFIG_ARCH_HAVE_VFORK) || defined(CONFIG_ARCH_HAVE_FORK)
+pid_t up_fork(bool vfork);
+#endif
 
 /****************************************************************************
  * Name: up_initialize
@@ -1328,6 +1340,35 @@ int up_addrenv_clone(FAR const arch_addrenv_t *src,
 #endif
 
 /****************************************************************************
+ * Name: up_addrenv_fork
+ *
+ * Description:
+ *   Duplicate an address environment for POSIX fork():  allocate fresh
+ *   pages for the destination, copy the source's contents into them, and map
+ *   them at the same virtual addresses.  Unlike up_addrenv_clone(), which
+ *   copies only the representation and leaves both pointing at the same page
+ *   tables, the result is independent of the source.
+ *
+ *   Implemented only where CONFIG_ARCH_HAVE_FORK is selected.
+ *
+ * Input Parameters:
+ *   src  - The address environment to be duplicated.
+ *   dest - The location to receive the duplicate.  It is wiped by this
+ *          function before anything is allocated into it.
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.  -ENOMEM is
+ *   returned if there are not enough free pages to hold the copy, in which
+ *   case nothing is left allocated.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_HAVE_FORK
+int up_addrenv_fork(FAR const arch_addrenv_t *src,
+                    FAR arch_addrenv_t *dest);
+#endif
+
+/****************************************************************************
  * Name: up_addrenv_attach
  *
  * Description:
@@ -2243,78 +2284,6 @@ struct tls_info_s;
 void up_tls_initialize(FAR struct tls_info_s *info);
 #else
 #define up_tls_initialize(x)
-#endif
-
-/****************************************************************************
- * Multiple CPU support
- ****************************************************************************/
-
-/****************************************************************************
- * Name: up_testset
- *
- * Description:
- *   Perform an atomic test and set operation on the provided spinlock.
- *
- * Input Parameters:
- *   lock - The address of spinlock object.
- *
- * Returned Value:
- *   The spinlock is always locked upon return.  The value of previous value
- *   of the spinlock variable is returned, either SP_LOCKED if the spinlock
- *   was previously locked (meaning that the test-and-set operation failed to
- *   obtain the lock) or SP_UNLOCKED if the spinlock was previously unlocked
- *   (meaning that we successfully obtained the lock)
- *
- ****************************************************************************/
-
-/* See prototype in include/nuttx/spinlock.h */
-
-/****************************************************************************
- * Name: up_fetchadd8, up_fetchadd16, and up_fetchadd32
- *
- * Description:
- *   Perform an atomic fetch add operation on the provided 8-, 16-, or 32-
- *   bit value.
- *
- *   This function must be provided via the architecture-specific logic.
- *
- * Input Parameters:
- *   addr  - The address of value to be incremented.
- *   value - The addend
- *
- * Returned Value:
- *   The incremented value (volatile!)
- *
- ****************************************************************************/
-
-#ifdef CONFIG_ARCH_HAVE_FETCHADD
-int32_t up_fetchadd32(FAR volatile int32_t *addr, int32_t value);
-int16_t up_fetchadd16(FAR volatile int16_t *addr, int16_t value);
-int8_t up_fetchadd8(FAR volatile int8_t *addr, int8_t value);
-#endif
-
-/****************************************************************************
- * Name: up_fetchsub8
- *
- * Description:
- *   Perform an atomic fetch subtract operation on the provided 8-, 16-, or
- *   32-bit value.
- *
- *   This function must be provided via the architecture-specific logic.
- *
- * Input Parameters:
- *   addr  - The address of value to be decremented.
- *   value - The subtrahend
- *
- * Returned Value:
- *   The decremented value (volatile!)
- *
- ****************************************************************************/
-
-#ifdef CONFIG_ARCH_HAVE_FETCHADD
-int32_t up_fetchsub32(FAR volatile int32_t *addr, int32_t value);
-int16_t up_fetchsub16(FAR volatile int16_t *addr, int16_t value);
-int8_t up_fetchsub8(FAR volatile int8_t *addr, int8_t value);
 #endif
 
 /****************************************************************************

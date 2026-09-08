@@ -38,9 +38,25 @@
 #  include <stddef.h>
 #endif
 
+#include <arch/barriers.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/* MTCR and MFCR - move to / from Core Special Function Register */
+
+#define tricore_mtcr(reg, val)                                         \
+  ({                                                                   \
+    __asm__ volatile ("mtcr %0,%1\n\t"::"i"(reg),"d"(val):"memory");   \
+  })
+
+#define tricore_mfcr(reg)                                              \
+  ({                                                                   \
+    uint32_t __val;                                                    \
+    __asm__ volatile ("mfcr %0,%1": "=d" (__val) :"i"(reg): "memory"); \
+    __val;                                                             \
+  })
 
 /****************************************************************************
  * Public Types

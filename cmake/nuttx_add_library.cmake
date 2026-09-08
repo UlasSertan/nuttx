@@ -37,8 +37,7 @@ function(nuttx_add_library_internal target)
 
   # add main include directories
   target_include_directories(
-    ${target} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/include
-                             ${CMAKE_BINARY_DIR}/include)
+    ${target} SYSTEM PRIVATE ${NUTTX_DIR}/include ${NUTTX_BINARY_DIR}/include)
 
   # Set global compile options & definitions We use the "nuttx" target to hold
   # these properties so that libraries added after this property is set can read
@@ -56,8 +55,8 @@ function(nuttx_add_library_internal target)
   # add extra flags into command line
 
   if(DEFINED EXTRAFLAGS)
-    string(REPLACE " " ";" eflags "${EXTRAFLAGS}")
-    target_compile_options(${target} PRIVATE ${eflags})
+    separate_arguments(EXTRAFLAGS_LIST UNIX_COMMAND "${EXTRAFLAGS}")
+    target_compile_options(${target} PRIVATE ${EXTRAFLAGS_LIST})
   endif()
 
   # Set install config for all library

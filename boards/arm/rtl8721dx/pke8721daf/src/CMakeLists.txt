@@ -26,10 +26,50 @@ if(CONFIG_AMEBA_GPIO)
   list(APPEND SRCS rtl8721dx_gpio.c)
 endif()
 
+if(CONFIG_AMEBA_UART)
+  list(APPEND SRCS rtl8721dx_uart.c)
+endif()
+
+if(CONFIG_AMEBA_I2C)
+  list(APPEND SRCS rtl8721dx_i2c.c)
+endif()
+
+if(CONFIG_AMEBA_SPI)
+  list(APPEND SRCS rtl8721dx_spi.c)
+endif()
+
+if(CONFIG_AMEBA_PWM)
+  list(APPEND SRCS rtl8721dx_pwm.c)
+endif()
+
+if(CONFIG_AMEBA_ADC)
+  list(APPEND SRCS rtl8721dx_adc.c)
+endif()
+
+if(CONFIG_AMEBA_RTC)
+  list(APPEND SRCS rtl8721dx_rtc.c)
+endif()
+
+if(CONFIG_AMEBA_WDG)
+  list(APPEND SRCS rtl8721dx_wdg.c)
+endif()
+
+if(CONFIG_AMEBA_TIMER)
+  list(APPEND SRCS rtl8721dx_timer.c)
+endif()
+
 target_sources(board PRIVATE ${SRCS})
 
-if(CONFIG_AMEBA_GPIO)
-  # The board pin table pulls in the shared driver's public header from
+if(CONFIG_AMEBA_GPIO
+   OR CONFIG_AMEBA_UART
+   OR CONFIG_AMEBA_I2C
+   OR CONFIG_AMEBA_SPI
+   OR CONFIG_AMEBA_PWM
+   OR CONFIG_AMEBA_ADC
+   OR CONFIG_AMEBA_RTC
+   OR CONFIG_AMEBA_WDG
+   OR CONFIG_AMEBA_TIMER)
+  # The board pin/UART tables pull in the shared driver's public headers from
   # arch/arm/src/common/ameba/, not on the default board include path.
   target_include_directories(board
                              PRIVATE ${NUTTX_DIR}/arch/arm/src/common/ameba)

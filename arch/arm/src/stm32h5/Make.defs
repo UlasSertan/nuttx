@@ -38,7 +38,7 @@ endif
 
 CHIP_CSRCS += stm32_gpio.c stm32_irq.c stm32_lowputc.c stm32_rcc.c
 CHIP_CSRCS += stm32_start.c stm32_pwr.c stm32_timerisr.c
-CHIP_CSRCS += stm32_lse.c stm32_lsi.c
+CHIP_CSRCS += stm32_lse.c stm32_lsi.c stm32_exti_gpio.c
 
 ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CHIP_CSRCS += stm32_idle.c
@@ -84,6 +84,10 @@ ifeq ($(CONFIG_STM32_TIM),y)
 CHIP_CSRCS += stm32_tim.c
 endif
 
+ifeq ($(CONFIG_STM32_LPTIM),y)
+CHIP_CSRCS += stm32_lptim.c
+endif
+
 ifeq ($(CONFIG_STM32_HAVE_HSI48),y)
 CHIP_CSRCS += stm32_hsi48.c
 endif
@@ -110,6 +114,21 @@ endif
 
 ifeq ($(CONFIG_STM32_PWM),y)
 CHIP_CSRCS += stm32_pwm.c
+endif
+
+ifeq ($(CONFIG_PM),y)
+CHIP_CSRCS += stm32_pmstandby.c stm32_pmstop.c
+ifneq ($(CONFIG_ARCH_CUSTOM_PMINIT),y)
+CHIP_CSRCS += stm32_pminitialize.c
+endif
+endif
+
+ifeq ($(CONFIG_STM32_IWDG),y)
+CHIP_CSRCS += stm32_iwdg.c
+endif
+
+ifeq ($(CONFIG_STM32_WWDG),y)
+CHIP_CSRCS += stm32_wwdg.c
 endif
 
 # Required chip type specific files

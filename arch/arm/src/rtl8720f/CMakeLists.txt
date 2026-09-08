@@ -46,6 +46,42 @@ if(CONFIG_RTL8720F_FLASH_FS)
   list(APPEND SRCS ${AMEBA_COMMON}/ameba_flash_mtd.c)
 endif()
 
+if(CONFIG_AMEBA_GPIO)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_gpio.c)
+endif()
+
+if(CONFIG_AMEBA_UART)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_uart.c)
+endif()
+
+if(CONFIG_AMEBA_I2C)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_i2c.c)
+endif()
+
+if(CONFIG_AMEBA_SPI)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_spi.c)
+endif()
+
+if(CONFIG_AMEBA_PWM)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_pwm.c)
+endif()
+
+if(CONFIG_AMEBA_ADC)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_adc.c)
+endif()
+
+if(CONFIG_AMEBA_RTC)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_rtc.c)
+endif()
+
+if(CONFIG_AMEBA_WDG)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_wdg.c)
+endif()
+
+if(CONFIG_AMEBA_TIMER)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_timer.c)
+endif()
+
 target_include_directories(arch PRIVATE ${AMEBA_COMMON})
 target_sources(arch PRIVATE ${SRCS})
 
@@ -90,6 +126,53 @@ set(AMEBA_FWLIB_SRCS
 
 if(CONFIG_RTL8720F_FLASH_FS)
   list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_flash_ram.c)
+endif()
+
+# UART register layer.  The UART driver (arch/.../common/ameba/ameba_uart.c)
+# calls the fwlib UART API, all of which resolves to the ROM symbol table; but
+# the ROM routines index the fwlib data tables (UART_DEV_TABLE, APBPeriph_UARTx)
+# which live in this RAM source and must be compiled in (--gc-sections drops the
+# unused DMA/monitor helpers).
+if(CONFIG_AMEBA_UART)
+  list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_uart.c)
+endif()
+
+# I2C register layer (same rationale as the UART block above): the fwlib I2C
+# data tables live in this RAM source and must be compiled in.
+if(CONFIG_AMEBA_I2C)
+  list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_i2c.c)
+endif()
+
+# SPI (DesignWare SSI) register layer.  The SPI driver
+# (arch/.../common/ameba/ameba_spi.c) calls the fwlib SSI API; the data tables
+# and helpers it indexes live in this RAM source and must be compiled in
+# (--gc-sections drops the unused DMA/interrupt helpers).
+if(CONFIG_AMEBA_SPI)
+  list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_spi.c)
+endif()
+
+# PWM timer register layer.  The time-base entry points (RTIM_TimeBaseInit/
+# StructInit/Cmd) are in ROM, but the compare/period helpers the PWM driver
+# (arch/.../common/ameba/ameba_pwm.c) calls -- RTIM_CCStructInit/CCxInit/
+# CCRxSet/CCxCmd/ChangePeriod/PrescalerConfig -- are compiled from this RAM
+# source and linked in (--gc-sections drops the unused input-capture paths).
+if(CONFIG_AMEBA_PWM)
+  list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_tim.c)
+endif()
+
+# ADC (SAR) register layer.  The ADC driver (arch/.../common/ameba/ameba_adc.c)
+# calls the fwlib ADC API; the data tables and helpers it indexes live in this
+# RAM source and must be compiled in (--gc-sections drops the unused
+# interrupt/timer-trigger helpers).
+if(CONFIG_AMEBA_ADC)
+  list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_adc.c)
+endif()
+
+# RTC register layer.  The RTC driver (arch/.../common/ameba/ameba_rtc.c) calls
+# the fwlib RTC API; the data tables and helpers it indexes live in this RAM
+# source and must be compiled in (mirrors the make build's ameba_board.mk).
+if(CONFIG_AMEBA_RTC)
+  list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_rtc.c)
 endif()
 
 # Silence a couple of warnings the vendored SDK sources trip under NuttX's

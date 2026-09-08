@@ -143,6 +143,23 @@ default gateway.
 removing the preceding path segments and (optionally) removing any
 trailing ``<suffix>``.
 
+.. _cmdboot:
+
+``boot`` Boot an Application Image
+==================================
+
+**Command Syntax**::
+
+  boot [<image path> [<header size>]]
+
+**Synopsis**. Boot a new application firmware image by invoking
+``boardctl(BOARDIOC_BOOT_IMAGE)``. The ``<image path>`` may be
+absolute or relative; relative paths are resolved against the NSH
+current working directory, consistent with ``cp``, ``cat``, and
+``rm``. This command depends on ``CONFIG_BOARDCTL_BOOT_IMAGE``; if
+the boot image cannot be started, ``boardctl()`` returns and an
+error is reported.
+
 .. _cmdbreak:
 
 ``break`` Terminate a Loop
@@ -430,6 +447,47 @@ buffer. Entering the ``dmesg`` command will dump the content of
 that in-memory, circular buffer to the NSH console output.
 ``dmesg`` has the side effect of clearing the buffered data so
 that entering ``dmesg`` again will show only newly buffered data.
+
+.. _cmddu:
+
+``du`` Estimate File Space Usage
+================================
+
+**Command Syntax**::
+
+  du [-h] [-s] [-a] [-d N] <path>...
+
+**Synopsis**. Recursively summarize the apparent size of each
+``<path>`` in 1K-blocks, or in human-readable form with ``-h``. If
+no ``<path>`` is given, the current working directory is used. As
+an example::
+
+  nsh> du
+  397449  /data/test/elf
+  71993   /data/test/coredump
+  5       /data/test/log2
+  3251    /data/test/log1
+  472700  /data/test
+  nsh> du -h
+  388.1M  /data/test/elf
+  70.3M   /data/test/coredump
+  4.1K    /data/test/log2
+  3.1M    /data/test/log1
+  461.6M  /data/test
+  nsh>
+
+**Options**
+
+========  ===========================================================
+``-s``    Summary only: print only the total for each ``<path>``.
+``-a``    List all files, not only directories.
+``-d N``  Print at most N directory depth levels.
+``-h``    Human-readable sizes (K/M/G, one decimal; ``B`` below 1K).
+========  ===========================================================
+
+Sizes are apparent sizes (``st_size``), not block usage. ``-h``
+prints one decimal using integer arithmetic and does not require
+float printf support.
 
 .. _cmdecho:
 
@@ -1774,6 +1832,71 @@ Option                           Purpose
   nsh# su testuser
   nsh$ whoami
   testuser
+
+.. _cmdsudo:
+
+``sudo`` Run a Command as Root (setuid helper)
+==============================================
+
+**Command Syntax**::
+
+  sudo <command> [args...]
+
+**Synopsis**. Run a single command with root privileges using a
+Linux-style setuid-root helper program (``CONFIG_SYSTEM_SUDO``).  The
+kernel raises the effective UID to the file owner when the ``sudo`` ELF
+is loaded (``S_ISUID`` via ``nx_mode`` in the application build).
+``sudo`` then:
+
+1. Identifies the invoking user from the real UID (``getuid()``).
+2. Checks that user against the sudoers allowlist (``/etc/sudoers`` and/or
+   ``CONFIG_SYSTEM_SUDO_ALLOWED_USERS``).  Real UID 0 is always allowed.
+3. Verifies that user's password with ``passwd_verify()`` in userspace.
+4. Calls ``setresuid()`` / ``setresgid()`` / ``initgroups()`` to become
+   fully root.
+5. ``execvp()``s the requested command, replacing the ``sudo`` process.
+
+Unlike the NSH ``su`` builtin (which changes the shell session),
+``sudo`` runs one command and exits.  After a hard credential drop
+(``setuid()`` to a non-zero user), unprivileged code cannot call
+``seteuid(0)``; executing the setuid ``sudo`` binary is the supported
+way to regain root for a single command.
+
+**Requirements**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 60 40
+
+   * - Option
+     - Purpose
+   * - ``CONFIG_SCHED_USER_IDENTITY``
+     - UID/GID tracking and setuid-on-exec
+   * - ``CONFIG_FSUTILS_PASSWD``
+     - ``passwd_verify()`` password check
+   * - ``CONFIG_LIBC_EXECFUNCS``
+     - Load the ``sudo`` ELF (not builtin main)
+   * - ``CONFIG_SYSTEM_SUDO``
+     - Build and install the setuid helper
+   * - ``CONFIG_BOARD_ETC_ROMFS_PASSWD_EXTRA_ENABLE``
+     - Unprivileged ``user`` plus ``/etc/sudoers``
+   * - ``CONFIG_EXAMPLES_HELLO_RESTRICTED``
+     - ``/bin/hello`` as ``-rwxr--r--`` root
+
+**Example** (login as root, then drop to a sudoers user)::
+
+  nsh# id
+  uid=0(root) gid=0(root)
+  nsh# ls -l /bin/sudo
+   -rwsr-xr-x    root     root            0 /bin/sudo
+  nsh# ls -l /bin/hello
+   -rwxr--r--    root     root            0 /bin/hello
+  nsh# su user
+  nsh$ /bin/hello
+  nsh: /bin/hello: Permission denied
+  nsh$ sudo /bin/hello
+  [sudo] password for user:
+  Hello, World!!
 
 .. _cmdtelnetd:
 

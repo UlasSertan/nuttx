@@ -544,6 +544,18 @@ struct xcptcontext
 
   uint64_t *regs;
 
+#ifdef CONFIG_LIB_SYSCALL
+  /* The register context of the user code that is currently in a system
+   * call, as x86_64_syscall_entry() saved it on the kernel stack.  This is
+   * what the caller of a system call was doing, as opposed to xcp.regs,
+   * which during a system call describes the kernel side of it.
+   * x86_64_fork() needs it to build a child from the caller rather than
+   * from the stub.
+   */
+
+  uint64_t *sregs;
+#endif
+
 #ifdef CONFIG_ARCH_ADDRENV
 #  ifdef CONFIG_ARCH_KERNEL_STACK
   /* In this configuration, all syscalls execute from an internal kernel
@@ -850,9 +862,36 @@ static inline_function void up_irq_restore(irqstate_t flags)
     }
 }
 
+static inline_function void apic_write(unsigned int offset,
+                                       unsigned long val)
+{
+#ifdef CONFIG_ARCH_X86_64_X2APIC
+  write_msr((offset >> 4) + MSR_X2APIC_BASE, val);
+#else
+  uintptr_t addr = APIC_BASE + offset;
+
+  /* xAPIC access must be 32-bit aligned */
+
+  *((FAR volatile uint32_t *)addr) = val;
+#endif
+}
+
+static inline_function unsigned long apic_read(unsigned int offset)
+{
+#ifdef CONFIG_ARCH_X86_64_X2APIC
+  return read_msr((offset >> 4) + MSR_X2APIC_BASE);
+#else
+  uintptr_t addr = APIC_BASE + offset;
+
+  /* xAPIC access must be 32-bit aligned */
+
+  return *((FAR volatile uint32_t *)addr);
+#endif
+}
+
 static inline_function unsigned int up_apic_cpu_id(void)
 {
-  return read_msr(MSR_X2APIC_ID);
+  return apic_read(APIC_ID);
 }
 
 /****************************************************************************

@@ -113,7 +113,7 @@ static inline void rcc_enableahb1(void)
   regval |= RCC_AHB1ENR_GPDMA2EN;
 #endif
 
-#ifdef CONFIG_STM32H5_FLASHEN
+#ifdef CONFIG_STM32_FLASH
   /* Flash memory interface clock enable */
 
   regval |= RCC_AHB1ENR_FLASHEN;
@@ -157,18 +157,18 @@ static inline void rcc_enableahb1(void)
   regval |= RCC_AHB1ENR_ETHRXEN;
 #endif
 
-#ifdef CONFIG_STM32H5_TZSC1
+#ifdef CONFIG_STM32_TZSC1
 
   regval |= RCC_AHB1ENR_TZSC1EN;
 #endif
 
-#ifdef CONFIG_STM32H5_BKPRAM
+#ifdef CONFIG_STM32_BKPRAM
   /* BKPRAM clock enable */
 
   regval |= RCC_AHB1ENR_BKPRAMEN;
 #endif
 
-#ifdef CONFIG_STM32H5_DCACHE
+#ifdef CONFIG_STM32_DCACHE1
   /* DCACHE clock enable */
 
   regval |= RCC_AHB1ENR_DCACHEEN;
@@ -214,19 +214,19 @@ static inline void rcc_enableahb2(void)
 #if STM32_NPORTS > 3
              | RCC_AHB2ENR_GPIODEN
 #endif
-#if STM32_NPORTS > 4
+#if STM32_NPORTS > 4 && !defined(CONFIG_STM32_STM32H50XXX)
              | RCC_AHB2ENR_GPIOEEN
 #endif
-#if STM32_NPORTS > 5
+#if STM32_NPORTS > 5 && !defined(CONFIG_STM32_STM32H50XXX)
              | RCC_AHB2ENR_GPIOFEN
 #endif
-#if STM32_NPORTS > 6
+#if STM32_NPORTS > 6 && !defined(CONFIG_STM32_STM32H50XXX)
              | RCC_AHB2ENR_GPIOGEN
 #endif
 #if STM32_NPORTS > 7
              | RCC_AHB2ENR_GPIOHEN
 #endif
-#if STM32_NPORTS > 7
+#if STM32_NPORTS > 8
              | RCC_AHB2ENR_GPIOIEN
 #endif
 
@@ -314,7 +314,7 @@ static inline void rcc_enableahb4(void)
 
   regval = getreg32(STM32_RCC_AHB4ENR);
 
-#ifdef CONFIG_STM32H5_OTFDEC1EN
+#ifdef CONFIG_STM32_OTFDEC1
   /* On-the-fly-decryption module clock enable */
 
   regval |= RCC_AHB4ENR_OTFDEC1EN;
@@ -365,6 +365,12 @@ static inline void rcc_enableapb1l(void)
 
   regval = getreg32(STM32_RCC_APB1LENR);
 
+#ifdef CONFIG_STM32_WWDG
+  /* Bit 11: WWDG clock enable */
+
+  regval |= RCC_APB1LENR_WWDGEN;
+#endif
+
 #ifdef CONFIG_STM32_SPI2
   /* Bit 14: SPI2 clock enable */
 
@@ -413,7 +419,7 @@ static inline void rcc_enableapb1l(void)
   regval |= RCC_APB1LENR_I2C2EN;
 #endif
 
-#ifdef CONFIG_STM32H5_I3C1
+#ifdef CONFIG_STM32_I3C1
   /* Bit 23: I3C1 clock enable */
 
   regval |= RCC_APB1LENR_I3C1EN;
@@ -424,7 +430,7 @@ static inline void rcc_enableapb1l(void)
     {
       /* Bit 24: CRS clock enable */
 
-  regval |= RCC_APB1LENR_CRSEN;
+      regval |= RCC_APB1LENR_CRSEN;
     }
 #endif
 
@@ -607,7 +613,7 @@ static inline void rcc_enableapb3(void)
 
   regval = getreg32(STM32_RCC_APB3ENR);
 
-#if defined(CONFIG_STM32H5_SBS) || defined(CONFIG_STM32_ETHMAC)
+#if defined(CONFIG_STM32_SBS) || defined(CONFIG_STM32_ETHMAC)
   /* Bit 1: SBS clock enable */
 
   regval |= RCC_APB3ENR_SBSEN;
@@ -637,7 +643,7 @@ static inline void rcc_enableapb3(void)
   regval |= RCC_APB3ENR_I2C4EN;
 #endif
 
-#ifdef CONFIG_STM32H5_I3C2
+#ifdef CONFIG_STM32_I3C2
   /* Bit 9: I3C2 clock enable */
 
   regval |= RCC_APB3ENR_I3C2EN;
@@ -667,7 +673,7 @@ static inline void rcc_enableapb3(void)
   regval |= RCC_APB3ENR_LPTIM5EN;
 #endif
 
-#ifdef CONFIG_STM32H5_LPTIM6
+#ifdef CONFIG_STM32_LPTIM6
   /* Bit 15: LPTIM6 clock enable */
 
   regval |= RCC_APB3ENR_LPTIM6EN;
@@ -760,7 +766,7 @@ static inline void rcc_set_flash_latency(void)
         {
           regval = FLASH_ACR_LATENCY(3) | FLASH_ACR_WRHIGHFREQ(1);
         }
-       else
+      else
         {
           regval = FLASH_ACR_LATENCY(4) | FLASH_ACR_WRHIGHFREQ(2);
         }

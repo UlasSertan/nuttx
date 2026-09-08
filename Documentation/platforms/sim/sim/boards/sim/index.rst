@@ -1446,6 +1446,30 @@ To use IPv4, modify these settings in the defconfig file:
    -CONFIG_NET_IPv6=y
    -CONFIG_NET_IPv6_NCONF_ENTRIES=4
 
+tflm
+----
+
+Builds TensorFlow Lite for Microcontrollers from
+``apps/mlearning/tflite-micro``, including the ``tflm`` command-line tool
+and the ``tflm_hello`` example.
+
+.. code-block:: console
+
+   $ ./tools/configure.sh sim:tflm
+   $ make -j$(nproc)
+   $ ./nuttx
+
+With CMake::
+
+   $ cmake -B build -DBOARD_CONFIG=sim:tflm -GNinja
+   $ cmake --build build
+   $ ./build/nuttx
+
+From NSH, ``tflm -h`` prints the tool usage. ``tflm_hello`` runs the
+upstream sine-model test and prints ``~~~ALL TESTS PASSED~~~`` on
+success. See :doc:`/applications/mlearning/tflite-micro/index` for the
+full test procedure.
+
 touchscreen
 -----------
 
@@ -1474,6 +1498,19 @@ An example usage:
    nsh> mount -t hostfs -o fs=/tmp/wasm /mnt
    nsh> toywasm --wasi /mnt/hello.wasm
    hello
+   nsh>
+
+txmorse
+-------
+
+This is a configuration with :doc:`the Morse transmitter example
+</applications/examples/txmorse/index>` using the :doc:`Morsey library
+</applications/audioutils/morsey/index>`.
+
+.. code:: console
+
+   nsh> txmorse "sos sos sos"
+    ... --- .../... --- .../... --- ...
    nsh>
 
 udgram
@@ -2173,9 +2210,22 @@ nxscope
 
 Configuration demonstrating NxScope stream over simulated UART interface.
 
-The simulated UART must be created on host before running NuttX::
+If ``CONFIG_SIM_UART_PTY`` is disabled, the simulated UART peer must be
+created on the host before running NuttX::
 
   socat PTY,link=/dev/ttySIM0 PTY,link=/dev/ttyNX0
+
+In that mode ``CONFIG_SIM_UART0_NAME`` is both the NuttX device name and
+the host path that the sim UART backend opens.  This works when the host
+path is stable, but it is inconvenient for automated tests and generated
+PTYs: the peer device must exist before the UART is opened, and changing
+the host path requires changing the NuttX configuration.
+
+If ``CONFIG_SIM_UART_PTY`` is enabled, NuttX creates the host
+pseudoterminal when the simulated UART is opened and prints the host
+PTY slave path.  The configured ``SIM_UARTx_NAME`` remains the NuttX
+device name, while the host PTY path is allocated at runtime and can be
+passed to the external simulator or test program.
 
 See :doc:`/applications/examples/nxscope/index` and
 :doc:`/applications/logging/nxscope/index` for more details.

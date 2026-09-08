@@ -17,9 +17,9 @@ Supported MCUs
 ===========  ======= ================
 MCU          Support Note
 ===========  ======= ================
-STM32H503     No
+STM32H503     Yes
 STM32H523     No
-STM32H533     No
+STM32H533     Yes
 STM32H562     No
 STM32H563     Yes
 STM32H573     No
@@ -54,21 +54,21 @@ USB_FS      Yes      USB Device and Host Support.
 AES         No
 CEC         No
 CORDIC      No
-CRC         No
+CRC         Yes
 CRS         No
 DAC         No
 DBG         No
 DCACHE      No
 DCMI        No
 DLYB        No
-EXTI        No
+EXTI        Yes
 FMAC        No
 FSMC        No
 GTZC        No
 HASH        No
 I3C         No
-IWDG        No
-LPTIM       No
+IWDG        Yes
+LPTIM       Yes
 OTFDEC      No
 PKA         No
 PSSI        No
@@ -82,7 +82,7 @@ SAI         No
 TAMP        No
 UCPD        No
 VREFBUF     No
-WWDG        No
+WWDG        Yes
 
 ==========  =======  =====
 

@@ -75,6 +75,10 @@ ifeq ($(CONFIG_STM32_ADC),y)
 CHIP_CSRCS += stm32_adc.c
 endif
 
+ifeq ($(CONFIG_STM32_DAC),y)
+CHIP_CSRCS += stm32_dac.c
+endif
+
 ifeq ($(CONFIG_STM32_FDCAN),y)
 CHIP_CSRCS += stm32_fdcan_sock.c
 endif
@@ -113,6 +117,10 @@ endif
 
 ifeq ($(CONFIG_STM32_QSPI),y)
 CHIP_CSRCS += stm32_qspi.c
+endif
+
+ifeq ($(CONFIG_STM32_XSPI),y)
+CHIP_CSRCS += stm32_xspi.c
 endif
 
 ifeq ($(CONFIG_STM32_RTC),y)

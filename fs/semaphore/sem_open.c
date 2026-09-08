@@ -138,6 +138,14 @@ int nxsem_open(FAR sem_t **sem, FAR const char *name, int oflags, ...)
           goto errout_with_inode;
         }
 
+#ifdef CONFIG_FS_PERMISSION
+      ret = inode_checkopenperm(inode, O_RDWR);
+      if (ret < 0)
+        {
+          goto errout_with_inode;
+        }
+#endif
+
       /* Return a reference to the semaphore, retaining the reference
        * count on the inode.
        */
@@ -203,7 +211,7 @@ int nxsem_open(FAR sem_t **sem, FAR const char *name, int oflags, ...)
           /* Initialize the inode */
 
           INODE_SET_NAMEDSEM(inode);
-          atomic_fetch_add(&inode->i_crefs, 1);
+          atomic_add(&inode->i_crefs, 1);
 
           /* Initialize the semaphore */
 

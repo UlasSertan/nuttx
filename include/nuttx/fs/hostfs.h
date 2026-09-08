@@ -113,6 +113,18 @@
 #define NUTTX_CH_STAT_ATIME     (1 << 3)
 #define NUTTX_CH_STAT_MTIME     (1 << 4)
 
+/* These must exactly match the definitions from include/nuttx/fs/ioctl.h: */
+
+#define NUTTX_FIOC_SETLK        0x0312
+#define NUTTX_FIOC_GETLK        0x0313
+#define NUTTX_FIOC_SETLKW       0x0314
+
+/* These must exactly match the definitions from include/fcntl.h: */
+
+#define NUTTX_F_RDLCK           0
+#define NUTTX_F_WRLCK           1
+#define NUTTX_F_UNLCK           2
+
 #endif /* __SIM__ */
 
 /****************************************************************************
@@ -203,6 +215,15 @@ struct nuttx_stat_s
   nuttx_blkcnt_t        st_blocks;  /* Number of blocks allocated */
 };
 
+struct nuttx_flock_s
+{
+  int16_t      l_type;
+  int16_t      l_whence;
+  nuttx_off_t  l_start;
+  nuttx_off_t  l_len;
+  int32_t      l_pid;
+};
+
 #endif /* __SIM__ */
 
 /****************************************************************************
@@ -235,6 +256,13 @@ int           host_rename(const char *oldpath, const char *newpath);
 int           host_stat(const char *path, struct nuttx_stat_s *buf);
 int           host_chstat(const char *path,
                           const struct nuttx_stat_s *buf, int flags);
+#ifdef CONFIG_FS_LINKS
+int           host_link(const char *path1, const char *path2);
+int           host_symlink(const char *target, const char *linkpath);
+nuttx_ssize_t host_readlink(const char *path, char *buf,
+                            nuttx_size_t bufsize);
+int           host_lstat(const char *path, struct nuttx_stat_s *buf);
+#endif
 #else
 int           host_open(const char *pathname, int flags, int mode);
 int           host_close(int fd);
@@ -259,6 +287,12 @@ int           host_rename(const char *oldpath, const char *newpath);
 int           host_stat(const char *path, struct stat *buf);
 int           host_chstat(const char *path,
                           const struct stat *buf, int flags);
+#ifdef CONFIG_FS_LINKS
+int           host_link(const char *path1, const char *path2);
+int           host_symlink(const char *target, const char *linkpath);
+ssize_t       host_readlink(const char *path, char *buf, size_t bufsize);
+int           host_lstat(const char *path, struct stat *buf);
+#endif
 #endif /* __SIM__ */
 
 #endif /* __INCLUDE_NUTTX_FS_HOSTFS_H */

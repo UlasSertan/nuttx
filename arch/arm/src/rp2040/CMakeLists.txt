@@ -36,8 +36,7 @@ list(
   rp2040_pll.c)
 
 if(CONFIG_SMP)
-  list(APPEND SRCS rp2040_cpustart.c rp2040_smpcall.c rp2040_cpuidlestack.c
-       rp2040_testset.c)
+  list(APPEND SRCS rp2040_cpustart.c rp2040_smpcall.c rp2040_cpuidlestack.c)
 endif()
 
 if(CONFIG_ARCH_HAVE_MULTICPU)
@@ -107,7 +106,7 @@ if(CONFIG_RP2040_FLASH_BOOT)
     set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
     include(${CMAKE_CURRENT_SOURCE_DIR}/boot2/rp2040_boot_stage2.cmake)
 
-    set(PATH_CHIP_RP2040 ${CMAKE_BINARY_DIR}/arch/${CONFIG_ARCH}/src/chip)
+    set(PATH_CHIP_RP2040 ${NUTTX_BINARY_DIR}/arch/${CONFIG_ARCH}/src/chip)
     pico_define_boot_stage2(rp2040_boot_stage2 ${PATH_CHIP_RP2040})
 
     if(EXISTS ${PATH_CHIP_RP2040}/rp2040_boot_stage2.S)

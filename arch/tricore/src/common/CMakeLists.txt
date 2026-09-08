@@ -53,10 +53,6 @@ if(CONFIG_ENABLE_ALL_SIGNALS)
   list(APPEND SRCS tricore_schedulesigaction.c tricore_sigdeliver.c)
 endif()
 
-if(CONFIG_SPINLOCK)
-  list(APPEND SRCS tricore_testset.c)
-endif()
-
 if(CONFIG_ARCH_USE_MPU)
   list(APPEND SRCS tricore_mpu.c)
 endif()
@@ -76,5 +72,5 @@ target_sources(nuttx PRIVATE tricore_doirq.c)
 target_compile_options(arch PRIVATE ${IFXFLAGS})
 target_compile_options(nuttx PRIVATE ${IFXFLAGS})
 target_include_directories(
-  nuttx SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include
-                       ${CMAKE_BINARY_DIR}/include_arch)
+  nuttx SYSTEM PRIVATE ${NUTTX_DIR}/include ${NUTTX_BINARY_DIR}/include
+                       ${NUTTX_BINARY_DIR}/include_arch)

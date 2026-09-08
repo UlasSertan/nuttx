@@ -131,7 +131,7 @@ void igmp_input(struct net_driver_s *dev)
 
   /* Verify the message length */
 
-  if (dev->d_len < NET_LL_HDRLEN(dev) + (iphdrlen + IGMP_HDRLEN))
+  if (dev->d_len < iphdrlen + IGMP_HDRLEN)
     {
       IGMP_STATINCR(g_netstats.igmp.length_errors);
       nwarn("WARNING: Length error\n");
@@ -141,7 +141,7 @@ void igmp_input(struct net_driver_s *dev)
 #ifdef CONFIG_NET_IGMP_CHECKSUMS
   /* Calculate and check the IGMP checksum */
 
-  if (net_chksum((FAR uint16_t *)igmp, IGMP_HDRLEN) != 0)
+  if (net_chksum((FAR uint16_t *)igmp, IGMP_HDRLEN) != 0xffff)
     {
       IGMP_STATINCR(g_netstats.igmp.chksum_errors);
       nwarn("WARNING: Checksum error\n");

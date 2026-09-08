@@ -71,6 +71,13 @@ static int chstat_recursive(FAR const char *path,
   inode = desc.node;
   DEBUGASSERT(inode != NULL);
 
+  ret = inode_checkpathperm(inode, 0, 0);
+  if (ret < 0)
+    {
+      inode_release(inode);
+      goto errout_with_search;
+    }
+
   /* The way we handle the chstat depends on the type of inode that we
    * are dealing with.
    */
@@ -418,7 +425,7 @@ int inode_chstat(FAR struct inode *inode,
 
   DEBUGASSERT(inode != NULL && buf != NULL);
 
-#ifdef CONFIG_PSEUDOFS_SOFTLINKS
+#ifdef CONFIG_FS_LINKS
   /* Handle softlinks differently.  Just call chstat() recursively on the
    * target of the softlink.
    */
@@ -446,6 +453,16 @@ int inode_chstat(FAR struct inode *inode,
 
           return chstat_recursive(inode->u.i_link, buf, flags, ++resolve);
         }
+    }
+
+  else if (INODE_IS_HARDLINK(inode))
+    {
+      /* The inode is a hard link.  The actual inode is referenced
+       * by the i_private field.
+       */
+
+      DEBUGASSERT(inode->i_private != NULL);
+      inode = inode->i_private;
     }
 #endif
 

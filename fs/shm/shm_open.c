@@ -112,11 +112,10 @@ static int file_shm_open(FAR struct file *shm, FAR const char *name,
           goto errout_with_sem;
         }
 
-#ifdef CONFIG_PSEUDOFS_ATTRIBUTES
-      if (((oflags & O_ACCMODE) != O_RDONLY && !(inode->i_mode & S_IWUSR)) ||
-          ((oflags & O_ACCMODE) != O_WRONLY && !(inode->i_mode & S_IRUSR)))
+#ifdef CONFIG_FS_PERMISSION
+      ret = inode_checkopenperm(inode, oflags);
+      if (ret < 0)
         {
-          ret = -EACCES;
           inode_release(inode);
           goto errout_with_sem;
         }
@@ -156,7 +155,7 @@ static int file_shm_open(FAR struct file *shm, FAR const char *name,
       INODE_SET_SHM(inode);
       inode->u.i_ops = &g_shmfs_operations;
       inode->i_private = NULL;
-      atomic_fetch_add(&inode->i_crefs, 1);
+      atomic_add(&inode->i_crefs, 1);
     }
 
   /* Associate the inode with a file structure */

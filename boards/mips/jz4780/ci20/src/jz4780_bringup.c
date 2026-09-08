@@ -28,20 +28,30 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <syslog.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/signal.h>
 #include <nuttx/irq.h>
 
 #include <arch/board/board.h>
 
+#ifdef CONFIG_VIDEO_FB
+#  include <nuttx/video/fb.h>
+#endif
+
 #include "ci20.h"
+#include "jz4780_gpio.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+#define HDMI_CEC      (GPIO_MODE_DEVICE0 | GPIO_PORTF | GPIO_PIN23)
+#define HDMI_SCL      (GPIO_MODE_DEVICE0 | GPIO_PORTF | GPIO_PIN24)
+#define HDMI_SDA      (GPIO_MODE_DEVICE0 | GPIO_PORTF | GPIO_PIN25)
+
+#define HDMI_POWER_EN (GPIO_MODE_OUTPUT1 | GPIO_PORTA | GPIO_PIN25)
 
 /****************************************************************************
  * Private Data
@@ -73,8 +83,36 @@ int jz4780_bringup(void)
   ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
   if (ret < 0)
     {
-      syslog(LOG_ERR, "ERROR: Failed to mount procfs at /proc: %d\n",
+      _err("ERROR: Failed to mount procfs at /proc: %d\n",
             ret);
+    }
+#endif
+
+#if defined(CONFIG_USBHOST)
+
+  ret = jz_usbhost_initialize();
+  if (ret != OK)
+    {
+      _err("ERROR: Failed to start USB host services: %d\n", ret);
+      return ret;
+    }
+#endif
+
+#ifdef CONFIG_VIDEO_FB
+
+  /* Configure the DDC pins */
+
+  jz4780_configgpio(HDMI_POWER_EN);
+  jz4780_configgpio(HDMI_CEC);
+  jz4780_configgpio(HDMI_SDA);
+  jz4780_configgpio(HDMI_SCL);
+
+  /* Initialize and register the framebuffer driver */
+
+  ret = fb_register(0, 0);
+  if (ret < 0)
+    {
+      _err("ERROR: fb_register() failed: %d\n", ret);
     }
 #endif
 

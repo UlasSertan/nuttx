@@ -347,7 +347,7 @@ LED PWM            Yes
 MCPWM              Yes     Motor control and capture
 Parallel IO        No
 LCD Interface      No
-MIPI DSI           No
+MIPI DSI           Yes
 Timers             Yes
 SPIRAM / PSRAM     Yes
 Watchdog           Yes     MWDT0/1 and RWDT
@@ -470,6 +470,9 @@ Makefile/CMake Variables for ULP Core Build:
 - ``ULP_APP_C_SRCS``: Lists all C source files (.c) that need to be compiled for the ULP application.
 - ``ULP_APP_ASM_SRCS``: Lists all assembly source files (.S or .s) to be assembled.
 - ``ULP_APP_INCLUDES``: Specifies additional include directories for the compiler and assembler.
+- ``ULP_CUSTOM_SECTIONS_LD``: Optional. Replaces the default ``${CHIP_SERIES}_lpcore_sections.ld`` linker template.
+- ``ULP_EXTRA_DEFINES``: Optional. Extra compile definitions for the ULP firmware
+- ``ULP_POST_LINK``: Optional (Make only). Commands run after linking.
 
 Here is an Makefile example when using prebuilt binary for ULP core:
 
@@ -963,7 +966,7 @@ ESP32-P4 Chip Revisions
 =======================
 
 .. attention:: NuttX by default supports ESP32-P4 chip revisions starting
-               from v3.0. 
+               from v3.0.
 
 Different ESP32-P4 chip revisions contain internal hardware breaking
 changes. Revisions 3.0 and higher are not compatible with 0.x and 1.x.
